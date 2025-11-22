@@ -257,6 +257,20 @@
   background: var(--canvas-bg);
 }
 
+.run-output {
+  border-top: 1px solid var(--border-color);
+  padding: 1rem 1.25rem;
+  background: var(--bg-tertiary);
+  max-height: 240px;
+  overflow: auto;
+}
+
+.run-output h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
 /* Custom Node Styles */
 .custom-node {
   background: var(--card-bg);
@@ -444,8 +458,8 @@
 }
 
 .react-flow__handle {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: 3px solid white;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4), 0 0 0 0 rgba(102, 126, 234, 0.5);
@@ -463,19 +477,28 @@
 }
 
 .react-flow__handle:hover {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(102, 126, 234, 0.2);
   animation: none;
 }
 
 .react-flow__handle-top {
-  top: -6px;
+  top: -8px;
 }
 
 .react-flow__handle-bottom {
-  bottom: -6px;
+  bottom: -8px;
+}
+
+/* Side handle offsets for better grab area */
+.react-flow__handle-left {
+  left: -8px;
+}
+
+.react-flow__handle-right {
+  right: -8px;
 }
 
 .react-flow__edge-path {
@@ -492,6 +515,23 @@
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: #667eea;
   stroke-width: 3.5;
+}
+
+/* Edge emphasis for active run path */
+.react-flow__edge.edge-active .react-flow__edge-path {
+  stroke-width: 4;
+  stroke: #3b82f6;
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+}
+
+/* Optional: memory/tool edge base styles if className present */
+.react-flow__edge.edge-memory .react-flow__edge-path {
+  stroke: #ef4444;
+  stroke-dasharray: 6 4;
+}
+.react-flow__edge.edge-tool .react-flow__edge-path {
+  stroke: #10b981;
+  stroke-dasharray: 6 4;
 }
 
 .react-flow__edge-text {
@@ -526,6 +566,12 @@
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Node emphasis for active run path */
+.react-flow__node.node-active .custom-node {
+  border-color: #3b82f6;
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.18), 0 4px 12px rgba(59, 130, 246, 0.16);
 }
 
 /* Responsive */

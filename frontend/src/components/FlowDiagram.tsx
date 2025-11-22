@@ -8,15 +8,22 @@ import {
   useEdgesState,
   addEdge,
   BackgroundVariant,
+  ConnectionLineType,
+  ConnectionMode,
+  MarkerType,
+  type ReactFlowInstance,
   type Node,
   type Edge,
   type Connection,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './FlowDiagram.css'
-import TriggerNode from './nodes/TriggerNode'
-import ActionNode from './nodes/ActionNode'
-import ConditionNode from './nodes/ConditionNode'
+import InputNode from './nodes/InputNode'
+import OutputNode from './nodes/OutputNode'
+import AgentNode from './nodes/AgentNode'
+import ToolNode from './nodes/ToolNode'
+import RouterNode from './nodes/RouterNode'
+import MemoryNode from './nodes/MemoryNode'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
@@ -40,9 +47,12 @@ interface Workflow {
 }
 
 const nodeTypes = {
-  trigger: TriggerNode,
-  action: ActionNode,
-  condition: ConditionNode,
+  input: InputNode,
+  output: OutputNode,
+  agent: AgentNode,
+  tool: ToolNode,
+  router: RouterNode,
+  memory: MemoryNode,
 }
 
 const initialNodes: Node[] = []
@@ -61,6 +71,13 @@ function FlowDiagram() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [nodeTypeOptions, setNodeTypeOptions] = useState<NodeTypeData[]>([])
+  const [executionInput, setExecutionInput] = useState('')
+  const [executionResult, setExecutionResult] = useState<any>(null)
+  const [workflowInput, setWorkflowInput] = useState('')
+  const [workflowResult, setWorkflowResult] = useState<any>(null)
+  const [running, setRunning] = useState(false)
+  const [viewMode, setViewMode] = useState<'log' | 'json'>('log')
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
 
   useEffect(() => {
     loadWorkflows()
@@ -92,7 +109,20 @@ function FlowDiagram() {
 
   const loadWorkflow = (workflow: Workflow) => {
     setNodes(workflow.nodes)
-    setEdges(workflow.edges)
+    setEdges(
+      (workflow.edges || []).map((e) => ({
+        animated: true,
+        type: e.type ?? 'smoothstep',
+        markerEnd:
+          (e as any).markerEnd ?? {
+            type: MarkerType.ArrowClosed,
+            width: 18,
+            height: 18,
+            color: (e as any).style?.stroke ?? '#94a3b8',
+          },
+        ...e,
+      }))
+    )
     setCurrentWorkflow(workflow)
     setWorkflowName(workflow.name)
     setShowWorkflowList(false)
@@ -181,13 +211,138 @@ function FlowDiagram() {
   }
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    (params: Connection) =>
+      setEdges((eds) => {
+        const getType = (id?: string | null) => nodes.find((n) => n.id === id)?.type
+        const sourceType = getType(params.source)
+        const targetType = getType(params.target)
+
+        let edgeStyle: React.CSSProperties | undefined
+        let className: string | undefined
+
+        if (sourceType === 'memory' || targetType === 'memory') {
+          edgeStyle = { stroke: '#ef4444', strokeDasharray: '6 4', strokeWidth: 2.5, opacity: 0.95 }
+          className = 'edge-memory'
+        } else if (sourceType === 'tool' || targetType === 'tool') {
+          edgeStyle = { stroke: '#10b981', strokeDasharray: '6 4', strokeWidth: 2.5, opacity: 0.95 }
+          className = 'edge-tool'
+        }
+
+        // Prefer the Agent right-side handle for lateral (Agent -> Memory) links
+        let sourceHandle = params.sourceHandle
+        if (sourceType === 'agent' && targetType === 'memory') {
+          sourceHandle = 'r'
+        }
+
+        const edgeProps = {
+          type: 'smoothstep' as const,
+          markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: edgeStyle?.stroke as string | undefined },
+          animated: true,
+          ...(edgeStyle ? { style: edgeStyle } : {}),
+          ...(className ? { className } : {}),
+        }
+
+        return addEdge({ ...params, sourceHandle, ...edgeProps }, eds)
+      }),
+    [setEdges, nodes]
   )
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node)
+    setExecutionResult(null)
   }, [])
+
+  const executeSelectedNode = async () => {
+    if (!selectedNode) return
+    try {
+      const response = await fetch(`${API_BASE_URL}/execute-node/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          node: selectedNode,
+          context: {
+            input: executionInput,
+            // Extend with additional context fields as needed
+          },
+        }),
+      })
+      const data = await response.json()
+      setExecutionResult(data)
+    } catch (err) {
+      setExecutionResult({ status: 'error', error: String(err) })
+    }
+  }
+
+  const executeWorkflow = async (opts?: { fromSelected?: boolean }) => {
+    setRunning(true)
+    setWorkflowResult(null)
+    try {
+      const response = await fetch(`${API_BASE_URL}/execute-workflow/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodes,
+          edges,
+          context: {
+            input: workflowInput,
+          },
+          ...(opts?.fromSelected && selectedNode ? { startNodeId: selectedNode.id } : {}),
+        }),
+      })
+      const data = await response.json()
+      setWorkflowResult(data)
+
+      // Highlight active path
+      const activeEdgeIds = new Set<string>()
+      const activeNodeIds = new Set<string>()
+      if (Array.isArray(data?.trace)) {
+        data.trace.forEach((step: any) => {
+          if (step?.nodeId) activeNodeIds.add(String(step.nodeId))
+          if (step?.edgeId) activeEdgeIds.add(String(step.edgeId))
+        })
+      }
+      setEdges((eds) =>
+        eds.map((e) => ({
+          ...e,
+          className: [
+            (e.className || '')
+              .split(' ')
+              .filter((c) => c && c !== 'edge-active')
+              .join(' '),
+            activeEdgeIds.has(e.id) ? 'edge-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        }))
+      )
+      setNodes((nds) =>
+        nds.map((n) => ({
+          ...n,
+          className: [
+            (n.className || '')
+              .split(' ')
+              .filter((c) => c && c !== 'node-active')
+              .join(' '),
+            activeNodeIds.has(n.id) ? 'node-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        }))
+      )
+
+      // Fit view to active nodes
+      if (rfInstance && activeNodeIds.size > 0) {
+        const nodesToFit = nodes.filter((n) => activeNodeIds.has(n.id))
+        if (nodesToFit.length) {
+          rfInstance.fitView({ nodes: nodesToFit, padding: 0.2, duration: 400 })
+        }
+      }
+    } catch (err) {
+      setWorkflowResult({ status: 'error', error: String(err) })
+    } finally {
+      setRunning(false)
+    }
+  }
 
   return (
     <div className="flow-container">
@@ -246,6 +401,25 @@ function FlowDiagram() {
           >
             {saving ? 'Saving...' : 'Save Workflow'}
           </button>
+          <input
+            type="text"
+            value={workflowInput}
+            onChange={(e) => setWorkflowInput(e.target.value)}
+            placeholder="Workflow input..."
+            className="workflow-name-input"
+            style={{ minWidth: 160 }}
+          />
+          <button className="btn-secondary" onClick={() => executeWorkflow()} disabled={running}>
+            {running ? 'Running...' : 'Run'}
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => executeWorkflow({ fromSelected: true })}
+            disabled={running || !selectedNode}
+            title={selectedNode ? `Run from ${selectedNode.data?.label || selectedNode.type}` : 'Select a node to enable'}
+          >
+            {running ? 'Running...' : 'Run From Selected'}
+          </button>
         </div>
       </div>
 
@@ -295,6 +469,20 @@ function FlowDiagram() {
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
+          onInit={(inst) => setRfInstance(inst)}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#94a3b8' },
+          }}
+          /* Make connections easier and less finicky */
+          connectOnClick={true}
+          connectionMode={ConnectionMode.Loose}
+          connectionRadius={48}
+          connectionDragThreshold={3}
+          connectionLineType={ConnectionLineType.SmoothStep}
+          connectionLineStyle={{ strokeWidth: 2.5, stroke: '#667eea' }}
+          panOnDrag={[2]} /* right mouse only, avoid accidental pans while connecting */
           fitView
           attributionPosition="bottom-left"
         >
@@ -302,12 +490,18 @@ function FlowDiagram() {
           <MiniMap
             nodeColor={(node) => {
               switch (node.type) {
-                case 'trigger':
+                case 'input':
+                  return '#3b82f6'
+                case 'output':
+                  return '#8b5cf6'
+                case 'agent':
                   return '#667eea'
-                case 'action':
+                case 'tool':
                   return '#10b981'
-                case 'condition':
+                case 'router':
                   return '#f59e0b'
+                case 'memory':
+                  return '#ef4444'
                 default:
                   return '#cbd5e1'
               }
@@ -317,6 +511,61 @@ function FlowDiagram() {
         </ReactFlow>
       </div>
 
+      <div className="run-output">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <h3>Run Output</h3>
+          <div>
+            <button
+              className="btn-secondary"
+              onClick={() => setViewMode(viewMode === 'log' ? 'json' : 'log')}
+              style={{ padding: '0.35rem 0.6rem' }}
+            >
+              {viewMode === 'log' ? 'View JSON' : 'View Log'}
+            </button>
+          </div>
+        </div>
+        {workflowResult ? (
+          viewMode === 'json' ? (
+            <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+              {JSON.stringify(workflowResult, null, 2)}
+            </pre>
+          ) : (
+            <div>
+              <div style={{ marginBottom: 8, color: 'var(--text-secondary)' }}>
+                Final: <strong style={{ color: 'var(--text-primary)' }}>{String(workflowResult.final ?? '')}</strong>
+              </div>
+              {Array.isArray(workflowResult.trace) && workflowResult.trace.length > 0 ? (
+                <ol style={{ paddingLeft: 18, margin: 0 }}>
+                  {workflowResult.trace.map((step: any, idx: number) => {
+                    const res = step?.result || {}
+                    const primary =
+                      res.final ?? res.output ?? res.route ?? (res.status === 'ok' ? 'ok' : res.error)
+                    return (
+                      <li key={`${step.nodeId}-${idx}`} style={{ marginBottom: 6 }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{idx + 1}.</span>{' '}
+                        <strong>{step.type}</strong> <span style={{ opacity: 0.6 }}>({step.nodeId})</span>{' '}
+                        {res.route !== undefined && (
+                          <span style={{ marginLeft: 8 }}>route: <strong>{String(res.route)}</strong></span>
+                        )}
+                        {primary !== undefined && (
+                          <span style={{ marginLeft: 8 }}>→ {typeof primary === 'object' ? JSON.stringify(primary) : String(primary)}</span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ol>
+              ) : (
+                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>No steps executed.</p>
+              )}
+            </div>
+          )
+        ) : (
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            Run the workflow to see output and trace here.
+          </p>
+        )}
+      </div>
+
       {selectedNode && (
         <div className="node-details">
           <h3>Node Details</h3>
@@ -324,11 +573,52 @@ function FlowDiagram() {
             <strong>Type:</strong> {selectedNode.type}
           </div>
           <div className="detail-item">
-            <strong>Label:</strong> {(selectedNode.data as { label: string }).label}
+            <strong>Label:</strong>
+            <input
+              type="text"
+              value={(selectedNode.data as any)?.label ?? ''}
+              onChange={(e) => {
+                const newLabel = e.target.value
+                setNodes((nds) =>
+                  nds.map((n) =>
+                    n.id === selectedNode.id
+                      ? { ...n, data: { ...(n.data as any), label: newLabel } }
+                      : n
+                  )
+                )
+                setSelectedNode((prev) =>
+                  prev ? { ...prev, data: { ...(prev.data as any), label: newLabel } } : prev
+                )
+              }}
+              style={{ width: '100%', marginLeft: 6 }}
+            />
           </div>
           <div className="detail-item">
             <strong>ID:</strong> {selectedNode.id}
           </div>
+          <div className="detail-item">
+            <strong>Test Input:</strong>
+            <input
+              type="text"
+              value={executionInput}
+              onChange={(e) => setExecutionInput(e.target.value)}
+              placeholder="Type input to execute..."
+              style={{ width: '100%', marginTop: 6 }}
+            />
+          </div>
+          <div className="detail-item">
+            <button className="btn-primary" onClick={executeSelectedNode}>
+              Execute Node
+            </button>
+          </div>
+          {executionResult && (
+            <div className="detail-item">
+              <strong>Result:</strong>
+              <pre style={{ whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(executionResult, null, 2)}
+              </pre>
+            </div>
+          )}
           <button
             className="btn-close"
             onClick={() => setSelectedNode(null)}
