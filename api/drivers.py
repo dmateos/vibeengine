@@ -1,4 +1,6 @@
 from typing import Any, Dict, Tuple
+import os
+import json
 from .memory_store import store
 
 
@@ -19,13 +21,61 @@ class AgentDriver(BaseDriver):
     type = "agent"
 
     def execute(self, node: Dict[str, Any], context: Dict[str, Any]) -> DriverResponse:
-        # Agent uses supplemental memory (knowledge) and tools if provided
+        # Agent can call OpenAI if configured; otherwise falls back to simple echo using knowledge/tools
         input_text = context.get("input", "")
-        label = (node.get("data") or {}).get("label", "Agent")
+        data = (node.get("data") or {})
+        label = data.get("label", "Agent")
         knowledge = context.get("knowledge") or {}
         tools = context.get("tools") or []
 
-        # If tools are provided as executed results, cascade string outputs
+        use_openai = data.get("use_openai") or (data.get("provider") == "openai")
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        model = data.get("model") or "gpt-4o-mini"
+        temperature = data.get("temperature")
+        try:
+            temperature_val = float(temperature) if temperature is not None else 0.2
+        except Exception:
+            temperature_val = 0.2
+        system_prompt = data.get("system") or "You are a helpful assistant."
+
+        # Build a contextual system message including supplemental knowledge summary
+        if knowledge:
+            try:
+                knowledge_json = json.dumps(knowledge)[:4000]
+                system_prompt = (
+                    f"{system_prompt}\n\nSupplemental knowledge (JSON):\n{knowledge_json}"
+                )
+            except Exception:
+                pass
+
+        if use_openai and api_key:
+            payload = {
+                "model": model,
+                "temperature": temperature_val,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": str(input_text)},
+                ],
+            }
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            try:
+                content = _post_openai_chat(base_url, payload, headers)
+                return DriverResponse({
+                    "output": content,
+                    "model": model,
+                    "status": "ok",
+                })
+            except Exception as exc:
+                # Fall through to local behavior with error note
+                fallback_note = f"OpenAI error: {exc}"
+        else:
+            fallback_note = None if use_openai else "OpenAI not enabled on node"
+
+        # Fallback: cascade tool outputs then compose response including knowledge/tools
         current = input_text
         used_tool_names = []
         for t in tools:
@@ -35,12 +85,13 @@ class AgentDriver(BaseDriver):
                 current = t_out
             used_tool_names.append(t_name)
 
-        # Compose a human-readable output
         base = f"{label} processed: {current}"
         if knowledge:
             base += f" | ctx: {knowledge}"
         if used_tool_names:
             base += f" | tools: {used_tool_names}"
+        if fallback_note:
+            base += f" | note: {fallback_note}"
 
         return DriverResponse({
             "output": base,
@@ -48,6 +99,32 @@ class AgentDriver(BaseDriver):
             "tools": tools,
             "status": "ok",
         })
+
+
+def _post_openai_chat(base_url: str, payload: Dict[str, Any], headers: Dict[str, str]) -> str:
+    """Post a chat completion request to OpenAI (or compatible) and return content.
+
+    Uses requests if available, else urllib.
+    """
+    url = base_url.rstrip("/") + "/chat/completions"
+    try:
+        import requests  # type: ignore
+
+        resp = requests.post(url, headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        # fallback to urllib
+        import urllib.request
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+        with urllib.request.urlopen(req, timeout=60) as f:  # type: ignore
+            data = json.loads(f.read().decode("utf-8"))
+
+    try:
+        return data["choices"][0]["message"]["content"]
+    except Exception:
+        # try the legacy completion shape
+        return data.get("choices", [{}])[0].get("text", "")
 
 
 class ToolDriver(BaseDriver):

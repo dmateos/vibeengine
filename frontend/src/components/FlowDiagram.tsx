@@ -604,6 +604,91 @@ function FlowDiagram() {
           <div className="detail-item">
             <strong>ID:</strong> {selectedNode.id}
           </div>
+          {selectedNode.type === 'agent' && (
+            <>
+              <div className="detail-item">
+                <strong>Use OpenAI:</strong>
+                <input
+                  type="checkbox"
+                  checked={Boolean((selectedNode.data as any)?.use_openai) || (selectedNode.data as any)?.provider === 'openai'}
+                  onChange={(e) => {
+                    const use_openai = e.target.checked
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), use_openai, provider: use_openai ? 'openai' : undefined } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev
+                        ? { ...prev, data: { ...(prev.data as any), use_openai, provider: use_openai ? 'openai' : undefined } }
+                        : prev
+                    )
+                  }}
+                  style={{ marginLeft: 6 }}
+                />
+              </div>
+              <div className="detail-item">
+                <strong>Model:</strong>
+                <input
+                  type="text"
+                  value={(selectedNode.data as any)?.model ?? 'gpt-4o-mini'}
+                  onChange={(e) => {
+                    const model = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                  placeholder="e.g., gpt-4o-mini"
+                />
+              </div>
+              <div className="detail-item">
+                <strong>Temperature:</strong>
+                <input
+                  type="number"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={(selectedNode.data as any)?.temperature ?? 0.2}
+                  onChange={(e) => {
+                    const temperature = parseFloat(e.target.value)
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), temperature } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev ? { ...prev, data: { ...(prev.data as any), temperature } } : prev
+                    )
+                  }}
+                  style={{ width: 100, marginLeft: 6 }}
+                />
+              </div>
+              <div className="detail-item">
+                <strong>System Prompt:</strong>
+                <textarea
+                  value={(selectedNode.data as any)?.system ?? 'You are a helpful assistant.'}
+                  onChange={(e) => {
+                    const system = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), system } } : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), system } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6, minHeight: 60 }}
+                />
+              </div>
+            </>
+          )}
           {selectedNode.type === 'memory' && (
             <div className="detail-item">
               <strong>Key:</strong>
