@@ -25,6 +25,7 @@ A modern full-stack web application built with Django (backend) and React + Type
 - React 18
 - TypeScript
 - Vite (build tool)
+- React Flow (@xyflow/react) - Node-based workflow editor
 - Modern CSS with responsive design
 
 ## Getting Started
@@ -81,12 +82,36 @@ The Django backend exposes the following API endpoints:
 
 ## Features
 
+- **Workflow Designer**: Interactive node-based workflow editor similar to PowerAutomate
+  - Drag-and-drop nodes (Trigger, Action, Condition)
+  - Visual connections between workflow steps
+  - Custom node types with icons and labels
+  - Pan, zoom, and minimap navigation
+  - Node selection and details panel
 - **Full-stack integration**: React + TypeScript frontend communicates with Django backend via REST API
 - **Type safety**: TypeScript interfaces for API responses ensure compile-time type checking
 - **CORS enabled**: Properly configured for local development
 - **Modern UI**: Clean, responsive design with gradient headers and card layouts
 - **Error handling**: Graceful error messages and retry functionality
 - **Real-time data**: Fetch and refresh data from the backend
+- **Tab navigation**: Switch between Workflow Designer and API Demo views
+
+## Using the Workflow Designer
+
+The application includes an interactive workflow designer accessible from the "Workflow Designer" tab:
+
+- **Node Types**:
+  - **Trigger** (Purple): Starting point of a workflow (e.g., "When an item is created")
+  - **Action** (Green): Execute operations (e.g., "Send email", "Create task")
+  - **Condition** (Orange): Decision points with Yes/No branches (e.g., "Is priority high?")
+
+- **Controls**:
+  - Drag nodes to reposition them
+  - Click and drag between node handles to create connections
+  - Use mouse wheel to zoom
+  - Click and drag background to pan
+  - Click on nodes to view details in the side panel
+  - Minimap in bottom-right for navigation
 
 ## Development Workflow
 
