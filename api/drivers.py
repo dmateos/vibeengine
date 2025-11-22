@@ -1,4 +1,5 @@
 from typing import Any, Dict, Tuple
+from .memory_store import store
 
 
 class DriverResponse(Dict[str, Any]):
@@ -18,11 +19,33 @@ class AgentDriver(BaseDriver):
     type = "agent"
 
     def execute(self, node: Dict[str, Any], context: Dict[str, Any]) -> DriverResponse:
-        # Stubbed agent behavior: echo input with agent label
+        # Agent uses supplemental memory (knowledge) and tools if provided
         input_text = context.get("input", "")
         label = (node.get("data") or {}).get("label", "Agent")
+        knowledge = context.get("knowledge") or {}
+        tools = context.get("tools") or []
+
+        # If tools are provided as executed results, cascade string outputs
+        current = input_text
+        used_tool_names = []
+        for t in tools:
+            t_out = (t or {}).get("output")
+            t_name = (t or {}).get("tool") or (t or {}).get("name")
+            if isinstance(t_out, str):
+                current = t_out
+            used_tool_names.append(t_name)
+
+        # Compose a human-readable output
+        base = f"{label} processed: {current}"
+        if knowledge:
+            base += f" | ctx: {knowledge}"
+        if used_tool_names:
+            base += f" | tools: {used_tool_names}"
+
         return DriverResponse({
-            "output": f"{label} processed: {input_text}",
+            "output": base,
+            "knowledge": knowledge,
+            "tools": tools,
             "status": "ok",
         })
 
@@ -31,13 +54,30 @@ class ToolDriver(BaseDriver):
     type = "tool"
 
     def execute(self, node: Dict[str, Any], context: Dict[str, Any]) -> DriverResponse:
-        # Simulate a tool invocation by returning a transformed payload
-        params = context.get("params", {})
-        tool_name = (node.get("data") or {}).get("label", "Tool")
-        return DriverResponse({
-            "output": {"tool": tool_name, "result": {"echo": params}},
-            "status": "ok",
-        })
+        data = (node.get("data") or {})
+        operation = data.get("operation") or "echo"
+        arg = data.get("arg") or ""
+        input_val = context.get("input")
+        tool_name = data.get("label", "Tool")
+
+        try:
+            if operation == "uppercase" and isinstance(input_val, str):
+                out = input_val.upper()
+            elif operation == "lowercase" and isinstance(input_val, str):
+                out = input_val.lower()
+            elif operation == "append" and isinstance(input_val, str):
+                out = f"{input_val}{arg}"
+            else:
+                # Default: echo provided params
+                out = {"echo": context.get("params", {})}
+
+            return DriverResponse({
+                "output": out,
+                "tool": tool_name,
+                "status": "ok",
+            })
+        except Exception as exc:
+            return DriverResponse({"status": "error", "error": str(exc)})
 
 
 class RouterDriver(BaseDriver):
@@ -78,12 +118,16 @@ class MemoryDriver(BaseDriver):
     type = "memory"
 
     def execute(self, node: Dict[str, Any], context: Dict[str, Any]) -> DriverResponse:
-        # Simulate saving to memory and returning prior+current
+        # Save to store and to transient context state
         state = context.get("state", {})
-        key = (node.get("data") or {}).get("key", "memory")
+        data = (node.get("data") or {})
+        key = data.get("key", "memory")
+        namespace = data.get("namespace") or "default"
+        store_key = f"{namespace}:{key}"
         # Default to using current input when explicit value is not provided
         value = context.get("value", context.get("input"))
-        previous = state.get(key)
+        previous = store.get(store_key)
+        store.set(store_key, value)
         state[key] = value
         return DriverResponse({
             "previous": previous,

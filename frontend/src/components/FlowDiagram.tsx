@@ -230,6 +230,14 @@ function FlowDiagram() {
 
         // Prefer the Agent right-side handle for lateral (Agent -> Memory) links
         let sourceHandle = params.sourceHandle
+        let data: any = undefined
+        // Context edge: Agent <-> (Memory|Tool)
+        const isAgentContext =
+          (sourceType === 'agent' && (targetType === 'memory' || targetType === 'tool')) ||
+          (targetType === 'agent' && (sourceType === 'memory' || sourceType === 'tool'))
+        if (isAgentContext) {
+          data = { context: true }
+        }
         if (sourceType === 'agent' && targetType === 'memory') {
           sourceHandle = 'r'
         }
@@ -242,7 +250,7 @@ function FlowDiagram() {
           ...(className ? { className } : {}),
         }
 
-        return addEdge({ ...params, sourceHandle, ...edgeProps }, eds)
+        return addEdge({ ...params, sourceHandle, data, ...edgeProps }, eds)
       }),
     [setEdges, nodes]
   )
@@ -596,6 +604,78 @@ function FlowDiagram() {
           <div className="detail-item">
             <strong>ID:</strong> {selectedNode.id}
           </div>
+          {selectedNode.type === 'memory' && (
+            <div className="detail-item">
+              <strong>Key:</strong>
+              <input
+                type="text"
+                value={(selectedNode.data as any)?.key ?? ''}
+                onChange={(e) => {
+                  const key = e.target.value
+                  setNodes((nds) =>
+                    nds.map((n) =>
+                      n.id === selectedNode.id
+                        ? { ...n, data: { ...(n.data as any), key } }
+                        : n
+                    )
+                  )
+                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), key } } : prev))
+                }}
+                style={{ width: '100%', marginLeft: 6 }}
+                placeholder="e.g., session"
+              />
+            </div>
+          )}
+
+          {selectedNode.type === 'tool' && (
+            <>
+              <div className="detail-item">
+                <strong>Operation:</strong>
+                <select
+                  value={(selectedNode.data as any)?.operation ?? 'echo'}
+                  onChange={(e) => {
+                    const operation = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), operation } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev
+                    )
+                  }}
+                  style={{ marginLeft: 6 }}
+                >
+                  <option value="echo">Echo Params</option>
+                  <option value="uppercase">Uppercase Input</option>
+                  <option value="lowercase">Lowercase Input</option>
+                  <option value="append">Append Suffix</option>
+                </select>
+              </div>
+              <div className="detail-item">
+                <strong>Arg:</strong>
+                <input
+                  type="text"
+                  value={(selectedNode.data as any)?.arg ?? ''}
+                  onChange={(e) => {
+                    const arg = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), arg } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), arg } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                  placeholder="Used for Append"
+                />
+              </div>
+            </>
+          )}
           <div className="detail-item">
             <strong>Test Input:</strong>
             <input

@@ -6,7 +6,8 @@ from .models import Workflow, NodeType
 from .serializers import WorkflowSerializer, NodeTypeSerializer
 from rest_framework import status
 from .drivers import execute_node_by_type
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+from .memory_store import store
 
 
 @api_view(['GET'])
@@ -108,6 +109,12 @@ def execute_workflow(request):
         return Response({"status": "error", "error": "nodes are required"}, status=status.HTTP_400_BAD_REQUEST)
 
     node_by_id: Dict[str, Dict[str, Any]] = {str(n.get('id')): n for n in nodes}
+    # helper to get type by id
+    def node_type_by_id(node_id: Optional[str]) -> Optional[str]:
+        if node_id is None:
+            return None
+        n = node_by_id.get(str(node_id))
+        return n.get('type') if n else None
     outgoing: Dict[str, List[Dict[str, Any]]] = {}
     incoming_count: Dict[str, int] = {str(n.get('id')): 0 for n in nodes}
 
@@ -141,8 +148,51 @@ def execute_workflow(request):
 
     while current and steps < max_steps:
         steps += 1
-        node_type = current.get('type')
-        res = execute_node_by_type(node_type, current, context)
+        ntype = current.get('type')
+
+        # Build supplemental knowledge/tools for agents only
+        exec_context = dict(context)
+        used_memory: List[str] = []
+        used_tools: List[str] = []
+        tool_results: List[Dict[str, Any]] = []
+        mem_knowledge: Dict[str, Any] = {}
+        if ntype == 'agent':
+            current_id = str(current.get('id'))
+            # consider all edges connected to this agent
+            for e in edges:
+                src = str(e.get('source'))
+                tgt = str(e.get('target'))
+                other_id = None
+                if src == current_id:
+                    other_id = tgt
+                elif tgt == current_id:
+                    other_id = src
+                if not other_id:
+                    continue
+                other = node_by_id.get(str(other_id))
+                if not other:
+                    continue
+                otype = other.get('type')
+                if otype == 'memory':
+                    data = (other.get('data') or {})
+                    key = data.get('key', 'memory')
+                    namespace = data.get('namespace') or 'default'
+                    store_key = f"{namespace}:{key}"
+                    val = store.get(store_key)
+                    mem_knowledge[key] = val
+                    used_memory.append(str(other.get('id')))
+                elif otype == 'tool':
+                    # Execute the tool with current input context
+                    tool_res = execute_node_by_type('tool', other, context)
+                    tool_results.append({'nodeId': other.get('id'), **tool_res})
+                    used_tools.append(str(other.get('id')))
+
+            if mem_knowledge:
+                exec_context['knowledge'] = mem_knowledge
+            if tool_results:
+                exec_context['tools'] = tool_results
+
+        res = execute_node_by_type(ntype, current, exec_context)
 
         if res.get('status') != 'ok':
             return Response({
@@ -163,12 +213,19 @@ def execute_workflow(request):
 
         # choose next node
         cid = str(current.get('id'))
-        outs = outgoing.get(cid, [])
+        # exclude edges that point to memory/tool from control flow
+        outs = []
+        for e in (outgoing.get(cid, []) or []):
+            tgt = str(e.get('target'))
+            ttype = node_type_by_id(tgt)
+            if ttype in ('memory', 'tool'):
+                continue
+            outs.append(e)
         nxt = None
         used_edge = None
         if not outs:
             nxt = None
-        elif node_type == 'router':
+        elif ntype == 'router':
             route = res.get('route')
             if route is not None:
                 # find edge with matching sourceHandle
@@ -192,6 +249,21 @@ def execute_workflow(request):
                     if sh in preferred:
                         chosen = e
                         break
+                # if still not chosen and multiple outs, prefer certain target types
+                if not chosen and len(outs) > 1:
+                    priority = {
+                        'tool': 10,
+                        'agent': 9,
+                        'router': 8,
+                        'memory': 7,
+                        'output': 1,
+                    }
+                    def score(edge):
+                        tnode = node_by_id.get(str(edge.get('target')))
+                        ttype = (tnode or {}).get('type')
+                        return priority.get(ttype, 5)
+                    outs_sorted = sorted(outs, key=lambda e: score(e), reverse=True)
+                    chosen = outs_sorted[0]
                 if not chosen:
                     chosen = outs[0]
                 used_edge = chosen
@@ -199,13 +271,15 @@ def execute_workflow(request):
 
         trace.append({
             'nodeId': current.get('id'),
-            'type': node_type,
+            'type': ntype,
             'result': res,
             'edgeId': used_edge.get('id') if isinstance(used_edge, dict) else None,
             'nextNodeId': nxt.get('id') if isinstance(nxt, dict) else None,
+            'usedMemory': used_memory if ntype == 'agent' else None,
+            'usedTools': used_tools if ntype == 'agent' else None,
         })
 
-        if node_type == 'output':
+        if ntype == 'output':
             break
 
         current = nxt
