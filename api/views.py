@@ -137,6 +137,16 @@ def execute_workflow(request):
     if not start and nodes:
         start = nodes[0]
 
+    # If starting at an input node and no explicit workflow input provided, use node's configured value
+    if start and start.get('type') == 'input':
+        try:
+            node_val = (start.get('data') or {}).get('value')
+            if (context.get('input') is None) or (isinstance(context.get('input'), str) and context.get('input') == ''):
+                if node_val is not None:
+                    context['input'] = node_val
+        except Exception:
+            pass
+
     current = start
     steps = 0
     max_steps = len(nodes) + len(edges) + 10

@@ -399,6 +399,13 @@
   color: #1f2937;
 }
 
+/* Improve label contrast in dark mode */
+:root[data-theme="dark"] .trigger-node .node-label,
+:root[data-theme="dark"] .action-node .node-label,
+:root[data-theme="dark"] .condition-node .node-label {
+  color: var(--text-primary);
+}
+
 /* Node Details Panel */
 .node-details {
   position: absolute;

@@ -101,6 +101,17 @@ function FlowDiagram() {
       const data = await response.json()
       setWorkflows(data)
       setLoading(false)
+      // auto-open last used workflow if any and none loaded yet
+      try {
+        const lastIdRaw = localStorage.getItem('lastWorkflowId')
+        const lastId = lastIdRaw ? parseInt(lastIdRaw) : null
+        if (lastId && !currentWorkflow) {
+          const wf = data.find((w: Workflow) => w.id === lastId)
+          if (wf) {
+            loadWorkflow(wf)
+          }
+        }
+      } catch {}
     } catch (error) {
       console.error('Error loading workflows:', error)
       setLoading(false)
@@ -126,6 +137,9 @@ function FlowDiagram() {
     setCurrentWorkflow(workflow)
     setWorkflowName(workflow.name)
     setShowWorkflowList(false)
+    try {
+      localStorage.setItem('lastWorkflowId', String(workflow.id))
+    } catch {}
   }
 
   const saveWorkflow = async () => {
@@ -162,6 +176,9 @@ function FlowDiagram() {
       setCurrentWorkflow(savedWorkflow)
       await loadWorkflows()
       alert('Workflow saved successfully!')
+      try {
+        localStorage.setItem('lastWorkflowId', String(savedWorkflow.id))
+      } catch {}
     } catch (error) {
       console.error('Error saving workflow:', error)
       alert('Error saving workflow')
@@ -176,6 +193,9 @@ function FlowDiagram() {
     setCurrentWorkflow(null)
     setWorkflowName('New Workflow')
     setShowWorkflowList(false)
+    try {
+      localStorage.removeItem('lastWorkflowId')
+    } catch {}
   }
 
   const deleteWorkflow = async (id: number) => {
@@ -189,6 +209,12 @@ function FlowDiagram() {
       if (currentWorkflow?.id === id) {
         createNewWorkflow()
       }
+      try {
+        const lastId = localStorage.getItem('lastWorkflowId')
+        if (lastId && parseInt(lastId) === id) {
+          localStorage.removeItem('lastWorkflowId')
+        }
+      } catch {}
     } catch (error) {
       console.error('Error deleting workflow:', error)
       alert('Error deleting workflow')
@@ -604,6 +630,24 @@ function FlowDiagram() {
           <div className="detail-item">
             <strong>ID:</strong> {selectedNode.id}
           </div>
+          {selectedNode.type === 'input' && (
+            <div className="detail-item">
+              <strong>Value:</strong>
+              <input
+                type="text"
+                value={(selectedNode.data as any)?.value ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setNodes((nds) =>
+                    nds.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), value } } : n))
+                  )
+                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), value } } : prev))
+                }}
+                style={{ width: '100%', marginLeft: 6 }}
+                placeholder="Default input used if run input is blank"
+              />
+            </div>
+          )}
           {selectedNode.type === 'agent' && (
             <>
               <div className="detail-item">
