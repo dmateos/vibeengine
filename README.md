@@ -1,6 +1,6 @@
-# Django + React + TypeScript Full-Stack Application
+# VibeEngine - Workflow Automation Platform
 
-A modern full-stack web application built with Django (backend) and React + TypeScript (frontend).
+A modern full-stack workflow automation platform built with Django (backend) and React + TypeScript (frontend). Create, save, and manage complex workflows with an intuitive visual designer.
 
 ## Project Structure
 
@@ -77,8 +77,24 @@ A modern full-stack web application built with Django (backend) and React + Type
 
 The Django backend exposes the following API endpoints:
 
+### Sample Endpoints
 - `GET /api/hello/` - Returns a hello message with timestamp
 - `GET /api/items/` - Returns a list of sample items
+
+### Workflow Endpoints
+- `GET /api/workflows/` - List all workflows
+- `POST /api/workflows/` - Create a new workflow
+- `GET /api/workflows/{id}/` - Get a specific workflow
+- `PUT /api/workflows/{id}/` - Update a workflow
+- `DELETE /api/workflows/{id}/` - Delete a workflow
+
+Each workflow includes:
+- `name`: Workflow name
+- `description`: Optional description
+- `nodes`: Array of workflow nodes with positions and data
+- `edges`: Array of connections between nodes
+- `created_at`: Timestamp of creation
+- `updated_at`: Timestamp of last update
 
 ## Features
 
@@ -88,6 +104,9 @@ The Django backend exposes the following API endpoints:
   - Custom node types with icons and labels
   - Pan, zoom, and minimap navigation
   - Node selection and details panel
+  - **Persistent storage**: Save workflows to database with node positions and connections
+  - **Load/Save**: Create, update, and delete workflows
+  - **Workflow list**: Browse and load saved workflows
 - **Full-stack integration**: React + TypeScript frontend communicates with Django backend via REST API
 - **Type safety**: TypeScript interfaces for API responses ensure compile-time type checking
 - **CORS enabled**: Properly configured for local development
@@ -112,6 +131,15 @@ The application includes an interactive workflow designer accessible from the "W
   - Click and drag background to pan
   - Click on nodes to view details in the side panel
   - Minimap in bottom-right for navigation
+
+- **Workflow Management**:
+  - **Save Workflow**: Enter a name and click "Save Workflow" to persist your workflow to the database
+  - **Load Workflow**: Click "Load Workflow" to see all saved workflows, then click on one to load it
+  - **New Workflow**: Click "New Workflow" to start fresh with a sample workflow template
+  - **Delete Workflow**: In the workflow list, click "Delete" to remove a workflow
+  - **Auto-save indicator**: Shows when the workflow was last saved
+
+All node positions, connections, and data are automatically saved when you click "Save Workflow".
 
 ## Development Workflow
 
