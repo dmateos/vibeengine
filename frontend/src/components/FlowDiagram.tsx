@@ -584,6 +584,17 @@ function FlowDiagram() {
                         {primary !== undefined && (
                           <span style={{ marginLeft: 8 }}>→ {typeof primary === 'object' ? JSON.stringify(primary) : String(primary)}</span>
                         )}
+                        {step.type === 'agent' && Array.isArray(res.tool_call_log) && res.tool_call_log.length > 0 && (
+                          <div style={{ marginTop: 4, marginLeft: 12, fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+                            {res.tool_call_log.map((tc: any, i: number) => (
+                              <div key={i}>
+                                tool: <code>{tc?.name || ''}</code>{' '}
+                                args: <code>{tc?.args ? JSON.stringify(tc.args) : '{}'}</code>{' '}
+                                → result: <code>{tc?.result ? (typeof tc.result === 'object' ? JSON.stringify(tc.result) : String(tc.result)) : ''}</code>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </li>
                     )
                   })}

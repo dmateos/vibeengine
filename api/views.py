@@ -164,7 +164,8 @@ def execute_workflow(request):
         exec_context = dict(context)
         used_memory: List[str] = []
         used_tools: List[str] = []
-        tool_results: List[Dict[str, Any]] = []
+        tool_specs: List[Dict[str, Any]] = []
+        tool_nodes_map: Dict[str, Any] = {}
         mem_knowledge: Dict[str, Any] = {}
         if ntype == 'agent':
             current_id = str(current.get('id'))
@@ -192,15 +193,23 @@ def execute_workflow(request):
                     mem_knowledge[key] = val
                     used_memory.append(str(other.get('id')))
                 elif otype == 'tool':
-                    # Execute the tool with current input context
-                    tool_res = execute_node_by_type('tool', other, context)
-                    tool_results.append({'nodeId': other.get('id'), **tool_res})
-                    used_tools.append(str(other.get('id')))
+                    # Provide tool metadata to the agent; execution is driven by the agent via function calls
+                    tid = str(other.get('id'))
+                    odata = other.get('data') or {}
+                    tool_specs.append({
+                        'nodeId': tid,
+                        'name': odata.get('label') or f'Tool {tid}',
+                        'operation': odata.get('operation'),
+                        'arg': odata.get('arg'),
+                    })
+                    tool_nodes_map[tid] = other
+                    used_tools.append(tid)
 
             if mem_knowledge:
                 exec_context['knowledge'] = mem_knowledge
-            if tool_results:
-                exec_context['tools'] = tool_results
+            if tool_specs:
+                exec_context['agent_tools'] = tool_specs
+                exec_context['agent_tool_nodes'] = tool_nodes_map
 
         res = execute_node_by_type(ntype, current, exec_context)
 
