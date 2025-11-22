@@ -3,11 +3,28 @@ import './App.css'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
+interface HelloMessage {
+  message: string
+  timestamp: string
+  status: string
+}
+
+interface Item {
+  id: number
+  name: string
+  description: string
+}
+
+interface ItemsResponse {
+  items: Item[]
+  count: number
+}
+
 function App() {
-  const [message, setMessage] = useState(null)
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [message, setMessage] = useState<HelloMessage | null>(null)
+  const [items, setItems] = useState<Item[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -20,17 +37,17 @@ function App() {
 
       // Fetch hello message
       const helloResponse = await fetch(`${API_BASE_URL}/hello/`)
-      const helloData = await helloResponse.json()
+      const helloData: HelloMessage = await helloResponse.json()
       setMessage(helloData)
 
       // Fetch items
       const itemsResponse = await fetch(`${API_BASE_URL}/items/`)
-      const itemsData = await itemsResponse.json()
+      const itemsData: ItemsResponse = await itemsResponse.json()
       setItems(itemsData.items)
 
       setLoading(false)
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }
   }
@@ -92,7 +109,7 @@ function App() {
       </main>
 
       <footer className="footer">
-        <p>Built with Django 5.2.8 + React + Vite</p>
+        <p>Built with Django 5.2.8 + React + TypeScript + Vite</p>
       </footer>
     </div>
   )

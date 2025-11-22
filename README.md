@@ -1,6 +1,6 @@
-# Django + React Full-Stack Application
+# Django + React + TypeScript Full-Stack Application
 
-A modern full-stack web application built with Django (backend) and React (frontend).
+A modern full-stack web application built with Django (backend) and React + TypeScript (frontend).
 
 ## Project Structure
 
@@ -23,6 +23,7 @@ A modern full-stack web application built with Django (backend) and React (front
 
 ### Frontend
 - React 18
+- TypeScript
 - Vite (build tool)
 - Modern CSS with responsive design
 
@@ -80,7 +81,8 @@ The Django backend exposes the following API endpoints:
 
 ## Features
 
-- **Full-stack integration**: React frontend communicates with Django backend via REST API
+- **Full-stack integration**: React + TypeScript frontend communicates with Django backend via REST API
+- **Type safety**: TypeScript interfaces for API responses ensure compile-time type checking
 - **CORS enabled**: Properly configured for local development
 - **Modern UI**: Clean, responsive design with gradient headers and card layouts
 - **Error handling**: Graceful error messages and retry functionality
