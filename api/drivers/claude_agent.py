@@ -290,17 +290,6 @@ class ClaudeAgentDriver(BaseAgentDriver):
                 "tool_call_log": call_log,
                 "status": "ok",
             })
-            # Passive memory write: extract names and save to connected memory nodes
-            try:
-                mem_specs = context.get("agent_memory_nodes") or []
-                detected = self._extract_names(str(input_text))
-                if content and isinstance(content, str):
-                    detected += [n for n in self._extract_names(content) if n not in detected]
-                self._save_names_to_memory(detected, mem_specs)
-                if os.getenv("DEBUG_TOOL_CALLS") and detected:
-                    print(f"[ClaudeAgentDriver] saved names to memory: {detected}")
-            except Exception:
-                pass
             return resp
         except Exception as exc:
             return self._fallback_response(input_text, label, knowledge, tools, f"Claude error: {exc}")

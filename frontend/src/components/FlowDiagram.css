@@ -168,7 +168,7 @@
 }
 
 .btn-secondary {
-  background: white;
+  background: var(--card-bg);
   color: #667eea;
   border: 1.5px solid #667eea;
 }
@@ -176,6 +176,12 @@
 .btn-secondary:hover {
   background: #f0f2ff;
   border-color: #5568d3;
+}
+
+:root[data-theme="dark"] .btn-secondary:hover {
+  background: #242b3b;
+  border-color: #5568d3;
+  color: var(--text-primary);
 }
 
 .btn-primary:disabled,
@@ -191,7 +197,7 @@
 }
 
 .btn-secondary:disabled:hover {
-  background: white;
+  background: var(--card-bg);
   border-color: #667eea;
 }
 
@@ -514,7 +520,7 @@
   width: 20px;
   height: 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: 3px solid white;
+  border: 3px solid var(--bg-secondary);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4), 0 0 0 0 rgba(102, 126, 234, 0.5);
   transition: all 0.3s ease;
   animation: pulse 2s ease-in-out infinite;
@@ -596,12 +602,12 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
 }
 
 .react-flow__controls-button {
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
   transition: all 0.2s ease;
   padding: 8px;
 }
@@ -610,15 +616,32 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
+.react-flow__controls-button svg {
+  fill: var(--text-primary);
+}
+
 .react-flow__controls-button:hover svg {
   fill: white;
 }
 
 .react-flow__minimap {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+}
+
+/* Background dots/lines contrast in dark mode */
+:root[data-theme="dark"] .react-flow__background path {
+  stroke: rgba(148, 163, 184, 0.25);
+}
+
+/* Edge + handle tweaks for dark theme */
+:root[data-theme="dark"] .react-flow__edge-path {
+  stroke: #a5b4fc; /* slightly brighter on dark */
+}
+:root[data-theme="dark"] .react-flow__handle {
+  border-color: #0f1419; /* blend with dark canvas */
 }
 
 /* Node emphasis for active run path */
