@@ -124,7 +124,7 @@ class WorkflowExecutor:
 
             # Add trace entry
             trace.append(self._build_trace_entry(
-                current, ntype, res, used_edge, nxt, used_memory, used_tools
+                current, ntype, res, used_edge, nxt, used_memory, used_tools, exec_context
             ))
 
             # Stop at output node
@@ -363,12 +363,14 @@ class WorkflowExecutor:
     def _build_trace_entry(self, current: Dict[str, Any], ntype: str,
                           res: Dict[str, Any], used_edge: Optional[Dict[str, Any]],
                           nxt: Optional[Dict[str, Any]],
-                          used_memory: List[str], used_tools: List[str]) -> Dict[str, Any]:
+                          used_memory: List[str], used_tools: List[str],
+                          exec_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Build a trace entry for the current execution step."""
         return {
             'nodeId': current.get('id'),
             'type': ntype,
             'result': res,
+            'context': {'input': exec_context.get('input')} if exec_context else None,
             'edgeId': used_edge.get('id') if isinstance(used_edge, dict) else None,
             'nextNodeId': nxt.get('id') if isinstance(nxt, dict) else None,
             'usedMemory': used_memory if ntype in ('openai_agent', 'claude_agent') else None,

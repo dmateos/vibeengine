@@ -82,6 +82,8 @@ function FlowDiagram() {
   const [running, setRunning] = useState(false)
   const [viewMode, setViewMode] = useState<'log' | 'json'>('log')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const [consoleHeight, setConsoleHeight] = useState(240)
+  const [isResizing, setIsResizing] = useState(false)
 
   // Polling hook for async workflow execution
   const { state: executionState, startExecution } = usePolling()
@@ -152,8 +154,34 @@ function FlowDiagram() {
     }
   }, [toast])
 
+  // Handle console resize
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newHeight = window.innerHeight - e.clientY
+      setConsoleHeight(Math.max(150, Math.min(600, newHeight)))
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing])
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type })
+  }
+
+  const startResize = () => {
+    setIsResizing(true)
   }
 
   const loadNodeTypes = async () => {
@@ -645,7 +673,12 @@ function FlowDiagram() {
         </ReactFlow>
       </div>
 
-      <div className="run-output">
+      <div
+        className="resize-handle"
+        onMouseDown={startResize}
+        style={{ cursor: isResizing ? 'row-resize' : 'ns-resize' }}
+      />
+      <div className="run-output" style={{ height: consoleHeight }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <h3>Run Output</h3>
           <div>
@@ -672,25 +705,81 @@ function FlowDiagram() {
                 <ol style={{ paddingLeft: 18, margin: 0 }}>
                   {workflowResult.trace.map((step: any, idx: number) => {
                     const res = step?.result || {}
-                    const primary =
-                      res.final ?? res.output ?? res.route ?? (res.status === 'ok' ? 'ok' : res.error)
+                    const node = nodes.find(n => n.id === step.nodeId)
+                    const nodeLabel = node?.data?.label || step.nodeId
+                    const inputValue = step?.context?.input
+
                     return (
-                      <li key={`${step.nodeId}-${idx}`} style={{ marginBottom: 6 }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>{idx + 1}.</span>{' '}
-                        <strong>{step.type}</strong> <span style={{ opacity: 0.6 }}>({step.nodeId})</span>{' '}
+                      <li key={`${step.nodeId}-${idx}`} style={{ marginBottom: 10 }}>
+                        <div>
+                          <span style={{ color: 'var(--text-secondary)' }}>{idx + 1}.</span>{' '}
+                          <strong style={{ color: 'var(--text-primary)' }}>{nodeLabel}</strong>{' '}
+                          <span style={{ opacity: 0.5, fontSize: '0.85em' }}>({step.type})</span>
+                        </div>
+
+                        {inputValue !== undefined && inputValue !== null && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Input:</span>{' '}
+                            <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+                              {typeof inputValue === 'object' ? JSON.stringify(inputValue) : String(inputValue)}
+                            </code>
+                          </div>
+                        )}
+
                         {res.route !== undefined && (
-                          <span style={{ marginLeft: 8 }}>route: <strong>{String(res.route)}</strong></span>
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Route:</span>{' '}
+                            <strong style={{ color: res.route === 'yes' ? '#22c55e' : '#ef4444' }}>{String(res.route)}</strong>
+                          </div>
                         )}
-                        {primary !== undefined && (
-                          <span style={{ marginLeft: 8 }}>→ {typeof primary === 'object' ? JSON.stringify(primary) : String(primary)}</span>
+
+                        {res.output !== undefined && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Output:</span>{' '}
+                            <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+                              {typeof res.output === 'object' ? JSON.stringify(res.output) : String(res.output)}
+                            </code>
+                          </div>
                         )}
+
+                        {res.final !== undefined && res.output === undefined && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Final:</span>{' '}
+                            <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+                              {typeof res.final === 'object' ? JSON.stringify(res.final) : String(res.final)}
+                            </code>
+                          </div>
+                        )}
+
+                        {res.status === 'error' && res.error && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: '#ef4444' }}>Error:</span>{' '}
+                            <span style={{ color: '#ef4444' }}>{res.error}</span>
+                          </div>
+                        )}
+
                         {(step.type === 'openai_agent' || step.type === 'claude_agent') && Array.isArray(res.tool_call_log) && res.tool_call_log.length > 0 && (
-                          <div style={{ marginTop: 4, marginLeft: 12, fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+                          <div style={{ marginTop: 6, marginLeft: 12, fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+                            <div style={{ marginBottom: 4, fontWeight: 500 }}>Tool Calls:</div>
                             {res.tool_call_log.map((tc: any, i: number) => (
-                              <div key={i}>
-                                tool: <code>{tc?.name || ''}</code>{' '}
-                                args: <code>{tc?.args ? JSON.stringify(tc.args) : '{}'}</code>{' '}
-                                → result: <code>{tc?.result ? (typeof tc.result === 'object' ? JSON.stringify(tc.result) : String(tc.result)) : ''}</code>
+                              <div key={i} style={{ marginLeft: 8, marginBottom: 4 }}>
+                                <span style={{ color: '#10b981' }}>{tc?.name || 'unknown'}</span>
+                                {tc?.args && (
+                                  <>
+                                    {' '}
+                                    <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.95em' }}>
+                                      {JSON.stringify(tc.args)}
+                                    </code>
+                                  </>
+                                )}
+                                {tc?.result && (
+                                  <>
+                                    {' → '}
+                                    <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.95em' }}>
+                                      {typeof tc.result === 'object' ? JSON.stringify(tc.result) : String(tc.result)}
+                                    </code>
+                                  </>
+                                )}
                               </div>
                             ))}
                           </div>
