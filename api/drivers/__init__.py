@@ -2,6 +2,7 @@ from typing import Any, Dict
 from .base import BaseDriver, BaseAgentDriver, DriverResponse
 from .openai_agent import OpenAIAgentDriver
 from .claude_agent import ClaudeAgentDriver
+from .ollama_agent import OllamaAgentDriver
 from .tool import ToolDriver
 from .router import RouterDriver
 from .input import InputDriver
@@ -13,6 +14,7 @@ from .memory import MemoryDriver
 DRIVERS: Dict[str, BaseDriver] = {
     OpenAIAgentDriver.type: OpenAIAgentDriver(),
     ClaudeAgentDriver.type: ClaudeAgentDriver(),
+    OllamaAgentDriver.type: OllamaAgentDriver(),
     ToolDriver.type: ToolDriver(),
     RouterDriver.type: RouterDriver(),
     InputDriver.type: InputDriver(),
@@ -53,6 +55,7 @@ __all__ = [
     "DriverResponse",
     "OpenAIAgentDriver",
     "ClaudeAgentDriver",
+    "OllamaAgentDriver",
     "ToolDriver",
     "RouterDriver",
     "InputDriver",

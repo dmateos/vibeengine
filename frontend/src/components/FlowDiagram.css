@@ -779,3 +779,17 @@
     max-width: none;
   }
 }
+/* Ollama Agent Node */
+.ollama-agent-node {
+  border-left: 4px solid #06b6d4;
+  color: #06b6d4;
+}
+
+.ollama-agent-node .node-icon {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  color: white;
+}
+
+.ollama-agent-node .node-label {
+  color: #1f2937;
+}

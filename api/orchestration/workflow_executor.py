@@ -210,7 +210,7 @@ class WorkflowExecutor:
         used_memory: List[str] = []
         used_tools: List[str] = []
 
-        if ntype not in ('openai_agent', 'claude_agent'):
+        if ntype not in ('openai_agent', 'claude_agent', 'ollama_agent'):
             return exec_context, used_memory, used_tools
 
         current_id = str(current.get('id'))
@@ -352,6 +352,7 @@ class WorkflowExecutor:
             priority = {
                 'openai_agent': 9,
                 'claude_agent': 9,
+                'ollama_agent': 9,
                 'router': 8,
                 'memory': 7,
                 'output': 1,
@@ -384,6 +385,6 @@ class WorkflowExecutor:
             'context': {'input': exec_context.get('input')} if exec_context else None,
             'edgeId': used_edge.get('id') if isinstance(used_edge, dict) else None,
             'nextNodeId': nxt.get('id') if isinstance(nxt, dict) else None,
-            'usedMemory': used_memory if ntype in ('openai_agent', 'claude_agent') else None,
-            'usedTools': used_tools if ntype in ('openai_agent', 'claude_agent') else None,
+            'usedMemory': used_memory if ntype in ('openai_agent', 'claude_agent', 'ollama_agent') else None,
+            'usedTools': used_tools if ntype in ('openai_agent', 'claude_agent', 'ollama_agent') else None,
         }

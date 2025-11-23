@@ -22,6 +22,7 @@ import OutputNode from './nodes/OutputNode'
 import AgentNode from './nodes/AgentNode'
 import OpenAIAgentNode from './nodes/OpenAIAgentNode'
 import ClaudeAgentNode from './nodes/ClaudeAgentNode'
+import OllamaAgentNode from './nodes/OllamaAgentNode'
 import ToolNode from './nodes/ToolNode'
 import RouterNode from './nodes/RouterNode'
 import MemoryNode from './nodes/MemoryNode'
@@ -54,6 +55,7 @@ const nodeTypes = {
   agent: AgentNode,
   openai_agent: OpenAIAgentNode,
   claude_agent: ClaudeAgentNode,
+  ollama_agent: OllamaAgentNode,
   tool: ToolNode,
   router: RouterNode,
   memory: MemoryNode,
@@ -375,8 +377,8 @@ function FlowDiagram() {
         let sourceHandle = params.sourceHandle
         let data: any = undefined
 
-        const isAgentSource = sourceType === 'openai_agent' || sourceType === 'claude_agent'
-        const isAgentTarget = targetType === 'openai_agent' || targetType === 'claude_agent'
+        const isAgentSource = ['openai_agent','claude_agent','ollama_agent'].includes(String(sourceType))
+        const isAgentTarget = ['openai_agent','claude_agent','ollama_agent'].includes(String(targetType))
         const isMemoryOrTool = (t?: string | null) => t === 'memory' || t === 'tool'
         const isAgentContext =
           (isAgentSource && isMemoryOrTool(targetType)) ||
@@ -661,6 +663,8 @@ function FlowDiagram() {
                   return '#10a37f'
                 case 'claude_agent':
                   return '#d97757'
+                case 'ollama_agent':
+                  return '#06b6d4'
                 case 'tool':
                   return '#10b981'
                 case 'router':
@@ -851,13 +855,17 @@ function FlowDiagram() {
               />
             </div>
           )}
-          {(selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent') && (
+          {(selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent' || selectedNode.type === 'ollama_agent') && (
             <>
               <div className="detail-item">
                 <strong>Model:</strong>
                 <input
                   type="text"
-                  value={(selectedNode.data as any)?.model ?? (selectedNode.type === 'claude_agent' ? 'claude-3-5-sonnet-20241022' : 'gpt-4o-mini')}
+                  value={(selectedNode.data as any)?.model ?? (
+                    selectedNode.type === 'claude_agent' ? 'claude-3-5-sonnet-20241022' : (
+                      selectedNode.type === 'openai_agent' ? 'gpt-4o-mini' : 'llama3.1:8b-instruct'
+                    )
+                  )}
                   onChange={(e) => {
                     const model = e.target.value
                     setNodes((nds) =>
@@ -868,7 +876,13 @@ function FlowDiagram() {
                     setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
                   }}
                   style={{ width: '100%', marginLeft: 6 }}
-                  placeholder={selectedNode.type === 'claude_agent' ? 'e.g., claude-3-5-sonnet-20241022' : 'e.g., gpt-4o-mini'}
+                  placeholder={
+                    selectedNode.type === 'claude_agent'
+                      ? 'e.g., claude-3-5-sonnet-20241022'
+                      : selectedNode.type === 'openai_agent'
+                      ? 'e.g., gpt-4o-mini'
+                      : 'e.g., llama3.1:8b-instruct'
+                  }
                 />
               </div>
               <div className="detail-item">
