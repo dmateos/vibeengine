@@ -308,20 +308,29 @@ function FlowDiagram() {
           className = 'edge-tool'
         }
 
-        // Prefer the Agent right-side handle for lateral (Agent -> Memory/Tool) links
+        // Normalize agent connections:
+        // - Agent <-> (Memory|Tool): mark as context and force right handle 'r'
+        // - Agent -> non-(Memory|Tool): prefer bottom handle 's' for control-flow
         let sourceHandle = params.sourceHandle
         let data: any = undefined
-        // Context edge: Agent <-> (Memory|Tool)
+
         const isAgentSource = sourceType === 'openai_agent' || sourceType === 'claude_agent'
         const isAgentTarget = targetType === 'openai_agent' || targetType === 'claude_agent'
+        const isMemoryOrTool = (t?: string | null) => t === 'memory' || t === 'tool'
         const isAgentContext =
-          (isAgentSource && (targetType === 'memory' || targetType === 'tool')) ||
-          (isAgentTarget && (sourceType === 'memory' || sourceType === 'tool'))
+          (isAgentSource && isMemoryOrTool(targetType)) ||
+          (isAgentTarget && isMemoryOrTool(sourceType))
+
         if (isAgentContext) {
           data = { context: true }
-        }
-        if (isAgentSource && (targetType === 'memory' || targetType === 'tool')) {
-          sourceHandle = 'r'
+          if (isAgentSource && isMemoryOrTool(targetType)) {
+            sourceHandle = 'r'
+          }
+        } else if (isAgentSource && !isMemoryOrTool(targetType)) {
+          // Ensure control-flow from agents prefers the bottom handle
+          if (sourceHandle !== 's') {
+            sourceHandle = 's'
+          }
         }
 
         const edgeProps = {
@@ -348,8 +357,10 @@ function FlowDiagram() {
     if (selectedNode && deletedIds.has(selectedNode.id)) {
       setSelectedNode(null)
     }
+    // Prune edges connected to any deleted node to avoid stale edges
+    setEdges((eds) => eds.filter(e => !deletedIds.has(String(e.source)) && !deletedIds.has(String(e.target))))
     showToast(`Deleted ${deleted.length} node${deleted.length > 1 ? 's' : ''}`, 'info')
-  }, [selectedNode])
+  }, [selectedNode, setEdges])
 
   // Handle edge deletion
   const onEdgesDelete = useCallback((deleted: Edge[]) => {
@@ -358,8 +369,10 @@ function FlowDiagram() {
 
   const deleteSelectedNode = () => {
     if (!selectedNode) return
-
-    setNodes(nds => nds.filter(n => n.id !== selectedNode.id))
+    const id = selectedNode.id
+    setNodes(nds => nds.filter(n => n.id !== id))
+    // Also remove any edges connected to this node
+    setEdges(eds => eds.filter(e => e.source !== id && e.target !== id))
     setSelectedNode(null)
     showToast('Node deleted', 'info')
   }

@@ -155,7 +155,8 @@ class ClaudeAgentDriver(BaseAgentDriver):
 
         api_key = os.getenv("ANTHROPIC_API_KEY")
         base_url = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
-        model = data.get("model") or "claude-3-5-sonnet-20241022"
+        # Default to requested Claude Sonnet model if none specified in node data
+        model = data.get("model") or "claude-sonnet-4-5-20250929"
         temperature_val = self._get_temperature(data)
         system_prompt = self._build_system_prompt(data, knowledge)
 

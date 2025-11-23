@@ -232,11 +232,15 @@ def execute_workflow(request):
 
         # choose next node
         cid = str(current.get('id'))
-        # exclude edges that point to memory/tool from control flow
+        # exclude edges that point to memory/tool or missing/unknown targets from control flow
         outs = []
         for e in (outgoing.get(cid, []) or []):
             tgt = str(e.get('target'))
-            ttype = node_type_by_id(tgt)
+            tnode = node_by_id.get(tgt)
+            if not tnode:
+                # target node no longer exists (e.g., after delete/re-add); skip
+                continue
+            ttype = (tnode or {}).get('type')
             if ttype in ('memory', 'tool'):
                 continue
             outs.append(e)
