@@ -216,7 +216,9 @@ class WorkflowExecutor:
         current_id = str(current.get('id'))
         tool_specs: List[Dict[str, Any]] = []
         tool_nodes_map: Dict[str, Any] = {}
+        memory_nodes_map: Dict[str, Any] = {}
         mem_knowledge: Dict[str, Any] = {}
+        mem_specs: List[Dict[str, Any]] = []
 
         # Scan all edges connected to this agent
         for e in edges:
@@ -246,6 +248,12 @@ class WorkflowExecutor:
                 val = store.get(store_key)
                 mem_knowledge[key] = val
                 used_memory.append(str(other.get('id')))
+                mem_specs.append({
+                    'nodeId': str(other.get('id')),
+                    'key': key,
+                    'namespace': namespace,
+                })
+                memory_nodes_map[str(other.get('id'))] = other
 
             elif otype == 'tool':
                 tid = str(other.get('id'))
@@ -264,6 +272,9 @@ class WorkflowExecutor:
         if tool_specs:
             exec_context['agent_tools'] = tool_specs
             exec_context['agent_tool_nodes'] = tool_nodes_map
+        if mem_specs:
+            exec_context['agent_memory_nodes'] = mem_specs
+            exec_context['agent_memory_node_map'] = memory_nodes_map
 
         return exec_context, used_memory, used_tools
 

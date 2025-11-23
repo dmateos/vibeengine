@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 import os
 import json
 from .base import BaseDriver, DriverResponse
+from ..memory_store import store
 
 
 class ToolDriver(BaseDriver):
@@ -15,6 +16,46 @@ class ToolDriver(BaseDriver):
         tool_name = data.get("label", "Tool")
 
         try:
+            if operation in ("save_memory", "set_memory", "append_memory"):
+                # Persist value into the MemoryStore.
+                # Accept overrides via context.params or node.data defaults.
+                params = context.get("params") or {}
+                key = params.get("key") or data.get("key") or "memory"
+                namespace = params.get("namespace") or data.get("namespace") or "default"
+                # Value precedence: explicit params.value > context.input
+                value = params.get("value", input_val)
+                append = bool(params.get("append") or (operation == "append_memory"))
+
+                store_key = f"{namespace}:{key}"
+                previous = store.get(store_key)
+
+                if append:
+                    # Append to a list, creating if needed, and de-duplicate while preserving order
+                    base = previous if isinstance(previous, list) else []
+                    # Normalize to list when value is scalar
+                    values = value if isinstance(value, list) else [value]
+                    merged = list(base)
+                    for v in values:
+                        if v not in merged:
+                            merged.append(v)
+                    store.set(store_key, merged)
+                    stored = merged
+                else:
+                    store.set(store_key, value)
+                    stored = value
+
+                return DriverResponse({
+                    "status": "ok",
+                    "tool": tool_name,
+                    "operation": operation,
+                    "key": key,
+                    "namespace": namespace,
+                    "previous": previous,
+                    "stored": stored,
+                    # Pass-through original input
+                    "output": input_val,
+                })
+
             if operation == "google_search":
                 # Google Programmable Search (CSE) API
                 api_key = os.getenv("GOOGLE_API_KEY")

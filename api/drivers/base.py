@@ -67,3 +67,57 @@ class BaseAgentDriver(BaseDriver):
             "tools": tools,
             "status": "ok",
         })
+
+    # --- Memory helpers ---
+    def _extract_names(self, text: str) -> list:
+        """Naive name extractor: capitalized tokens not at sentence start.
+
+        This is intentionally simple and conservative. It won't catch all names
+        but provides a lightweight heuristic without external deps.
+        """
+        if not isinstance(text, str) or not text:
+            return []
+        import re
+        # Split into sentences and words
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        candidates = []
+        common = set([
+            'I','A','The','And','But','Or','We','You','He','She','It','They','We','Your','My',
+            'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',
+            'January','February','March','April','May','June','July','August','September','October','November','December'
+        ])
+        for s in sentences:
+            words = re.findall(r"[A-Za-z][a-z]+(?:'[A-Za-z]+)?", s)
+            # Skip the first word (often sentence start capitalization)
+            for w in words[1:]:
+                if w[0].isupper() and w not in common and len(w) > 1:
+                    candidates.append(w)
+        # Dedupe, preserve order
+        seen = set()
+        result = []
+        for c in candidates:
+            if c not in seen:
+                seen.add(c)
+                result.append(c)
+        return result
+
+    def _save_names_to_memory(self, names: list, mem_specs: list) -> None:
+        """Append detected names to all connected memory nodes."""
+        if not names or not mem_specs:
+            return
+        try:
+            from ..memory_store import store
+            for spec in mem_specs:
+                ns = (spec or {}).get('namespace') or 'default'
+                key = (spec or {}).get('key') or 'names'
+                store_key = f"{ns}:{key}"
+                prev = store.get(store_key)
+                base = prev if isinstance(prev, list) else ([] if prev is None else [prev])
+                merged = list(base)
+                for n in names:
+                    if n not in merged:
+                        merged.append(n)
+                store.set(store_key, merged)
+        except Exception:
+            # Non-fatal
+            pass

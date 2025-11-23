@@ -14,17 +14,26 @@ class _InProcessStore:
 
 
 class MemoryStore:
-    """Simple key-value memory store with optional Redis backend.
+    """Simple key-value memory store with DB priority.
 
-    If REDIS_URL/REDIS_HOST is configured and redis-py is importable, uses Redis.
-    Otherwise falls back to an in-process dictionary.
+    Priority order:
+    1) Django ORM model (when Django apps are ready)
+    2) Redis if REDIS_URL/REDIS_HOST configured and reachable
+    3) In-process dictionary
     """
 
     def __init__(self) -> None:
         self._backend = None
+        self._backend_type: str = 'memory'  # 'db' | 'redis' | 'memory'
         self._init_backend()
 
     def _init_backend(self) -> None:
+        """Initialize backing store in order of preference: DB -> Redis -> in-memory."""
+        # 1) Try Django DB-backed store
+        if self._try_init_db_backend():
+            return
+
+        # 2) Try Redis if configured
         url = os.getenv('REDIS_URL')
         host = os.getenv('REDIS_HOST')
         port = int(os.getenv('REDIS_PORT', '6379'))
@@ -38,15 +47,69 @@ class MemoryStore:
                     self._backend = redis.Redis(host=host, port=port)
                 # test connection
                 self._backend.ping()
+                self._backend_type = 'redis'
                 return
             except Exception:
-                # fall back to in-process store
-                pass
+                # fall through to next backend
+                self._backend = None
+
+        # 3) In-process fallback
         self._backend = _InProcessStore()
+        self._backend_type = 'memory'
+
+    def _try_init_db_backend(self) -> bool:
+        """Attempt to initialize the Django DB backend if possible."""
+        try:
+            from django.apps import apps  # type: ignore
+            if not apps.ready:
+                return False
+            from .models import MemoryEntry  # type: ignore
+
+            class _DjangoDBStore:
+                def get(self, key: str):
+                    try:
+                        ns, k = key.split(':', 1)
+                    except ValueError:
+                        ns, k = 'default', key
+                    try:
+                        obj = MemoryEntry.objects.filter(namespace=ns, key=k).first()
+                        return None if obj is None else obj.value
+                    except Exception:
+                        return None
+
+                def set(self, key: str, value):
+                    try:
+                        ns, k = key.split(':', 1)
+                    except ValueError:
+                        ns, k = 'default', key
+                    try:
+                        obj, _created = MemoryEntry.objects.get_or_create(namespace=ns, key=k)
+                        obj.value = value
+                        obj.save(update_fields=['value', 'updated_at'])
+                    except Exception:
+                        pass
+
+                def clear(self):
+                    try:
+                        MemoryEntry.objects.all().delete()
+                    except Exception:
+                        pass
+
+            self._backend = _DjangoDBStore()
+            self._backend_type = 'db'
+            return True
+        except Exception:
+            return False
 
     def get(self, key: str) -> Any:
-        if hasattr(self._backend, 'get') and not isinstance(self._backend, _InProcessStore):
-            # redis returns bytes by default
+        # If Django apps became ready after init, upgrade to DB backend once
+        if self._backend_type != 'db':
+            if self._try_init_db_backend():
+                return self._backend.get(key)
+        if self._backend_type == 'db':
+            return self._backend.get(key)
+        if self._backend_type == 'redis':
+            # redis returns bytes/str; we store JSON
             val = self._backend.get(key)
             try:
                 import json
@@ -58,7 +121,15 @@ class MemoryStore:
         return self._backend.get(key)
 
     def set(self, key: str, value: Any) -> None:
-        if hasattr(self._backend, 'set') and not isinstance(self._backend, _InProcessStore):
+        # Upgrade to DB backend if available now
+        if self._backend_type != 'db':
+            if self._try_init_db_backend():
+                self._backend.set(key, value)
+                return
+        if self._backend_type == 'db':
+            self._backend.set(key, value)
+            return
+        if self._backend_type == 'redis':
             try:
                 import json
                 payload = json.dumps(value)
@@ -72,7 +143,13 @@ class MemoryStore:
 
     def clear(self) -> None:
         """Clear all stored data."""
-        if isinstance(self._backend, _InProcessStore):
+        # Upgrade to DB backend if now available, but still clear active backend
+        if self._backend_type != 'db':
+            self._try_init_db_backend()
+
+        if self._backend_type == 'db':
+            self._backend.clear()
+        elif isinstance(self._backend, _InProcessStore):
             self._backend._data.clear()
         elif hasattr(self._backend, 'flushdb'):
             # Redis backend
@@ -80,4 +157,3 @@ class MemoryStore:
 
 
 store = MemoryStore()
-

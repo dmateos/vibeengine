@@ -102,22 +102,63 @@ class ClaudeAgentDriver(BaseAgentDriver):
                     name = tool_use.get("name", "")
                     args = tool_use.get("input", {})
 
-                    node_id = name.replace("tool_", "", 1)
-                    node = tool_nodes.get(str(node_id))
-                    if not node:
-                        res_obj = {"status": "error", "error": f"unknown tool {name}"}
+                    if name.startswith("memory_"):
+                        memory_nodes = shared_context.get("agent_memory_node_map") or {}
+                        mem_id = name.replace("memory_", "", 1)
+                        mnode = memory_nodes.get(str(mem_id))
+                        if not mnode:
+                            res_obj = {"status": "error", "error": f"unknown memory node {name}"}
+                        else:
+                            mdata = mnode.get("data") or {}
+                            key = mdata.get("key", "memory")
+                            namespace = mdata.get("namespace") or "default"
+                            mode = (args.get("mode") or "replace").lower()
+                            dedupe = bool(args.get("dedupe", True))
+                            value = args.get("value")
+                            from ..memory_store import store as _store
+                            store_key = f"{namespace}:{key}"
+                            previous = _store.get(store_key)
+                            try:
+                                if mode == "append":
+                                    base = previous if isinstance(previous, list) else ([] if previous is None else [previous])
+                                    merged = list(base)
+                                    vals = value if isinstance(value, list) else [value]
+                                    if dedupe:
+                                        for v in vals:
+                                            if v not in merged:
+                                                merged.append(v)
+                                    else:
+                                        merged.extend(vals)
+                                    _store.set(store_key, merged)
+                                    stored = merged
+                                elif mode == "merge" and isinstance(value, dict):
+                                    base = previous if isinstance(previous, dict) else {}
+                                    base.update(value)
+                                    _store.set(store_key, base)
+                                    stored = base
+                                else:
+                                    _store.set(store_key, value)
+                                    stored = value
+                                res_obj = {"status": "ok", "operation": "memory_write", "key": key, "namespace": namespace, "previous": previous, "stored": stored}
+                            except Exception as exc:
+                                res_obj = {"status": "error", "error": str(exc)}
                     else:
-                        tool_ctx = dict(shared_context)
-                        # Allow overriding input/params via arguments
-                        if "input" in args:
-                            tool_ctx["input"] = args["input"]
-                        if "params" in args:
-                            tool_ctx["params"] = args["params"]
-                        try:
-                            res = execute_node_by_type("tool", node, tool_ctx)
-                            res_obj = dict(res)
-                        except Exception as exc:
-                            res_obj = {"status": "error", "error": str(exc)}
+                        node_id = name.replace("tool_", "", 1)
+                        node = tool_nodes.get(str(node_id))
+                        if not node:
+                            res_obj = {"status": "error", "error": f"unknown tool {name}"}
+                        else:
+                            tool_ctx = dict(shared_context)
+                            # Allow overriding input/params via arguments
+                            if "input" in args:
+                                tool_ctx["input"] = args["input"]
+                            if "params" in args:
+                                tool_ctx["params"] = args["params"]
+                            try:
+                                res = execute_node_by_type("tool", node, tool_ctx)
+                                res_obj = dict(res)
+                            except Exception as exc:
+                                res_obj = {"status": "error", "error": str(exc)}
 
                     tool_results.append({
                         "type": "tool_result",
@@ -141,6 +182,12 @@ class ClaudeAgentDriver(BaseAgentDriver):
             # no tool calls -> final content
             text_blocks = [block.get("text", "") for block in content_blocks if block.get("type") == "text"]
             final_text = " ".join(text_blocks)
+            # Optional console debug
+            if tool_call_log and os.getenv("DEBUG_TOOL_CALLS"):
+                try:
+                    print("[ClaudeAgentDriver] tool calls:", json.dumps(tool_call_log)[:2000])
+                except Exception:
+                    pass
             return (final_text, tool_call_log)
 
         # loop exhausted
@@ -175,20 +222,41 @@ class ClaudeAgentDriver(BaseAgentDriver):
             tool_nodes: Dict[str, Any] = context.get("agent_tool_nodes") or {}
             call_log: List[Dict[str, Any]] = []  # Initialize call_log
 
-            if agent_tools:
+            mem_specs: List[Dict[str, Any]] = context.get("agent_memory_nodes") or []
+
+            if agent_tools or mem_specs:
                 tool_defs: List[Dict[str, Any]] = []
                 for t in agent_tools:
                     tid = str(t.get("nodeId"))
                     tname = t.get("name") or t.get("label") or f"Tool {tid}"
+                    input_schema = {
+                        "type": "object",
+                        "properties": {
+                            "input": {"type": ["string", "null"], "description": "Optional input override"},
+                            "params": {"type": "object", "description": "Optional parameters"},
+                        },
+                    }
                     tool_defs.append({
                         "name": f"tool_{tid}",
                         "description": f"Invoke connected tool '{tname}'",
+                        "input_schema": input_schema,
+                    })
+                # Add memory node functions
+                for m in mem_specs:
+                    mid = str(m.get("nodeId"))
+                    key = m.get("key")
+                    namespace = m.get("namespace")
+                    tool_defs.append({
+                        "name": f"memory_{mid}",
+                        "description": f"Persist extracted info to memory key '{key}' in namespace '{namespace}'.",
                         "input_schema": {
                             "type": "object",
                             "properties": {
-                                "input": {"type": ["string", "null"], "description": "Optional input override"},
-                                "params": {"type": "object", "description": "Optional parameters"},
+                                "value": {"type": ["string","number","boolean","object","array","null"], "description": "Data to store (any JSON)"},
+                                "mode": {"type": "string", "enum": ["replace","append","merge"], "description": "Replace, append to list, or merge objects"},
+                                "dedupe": {"type": ["boolean","null"], "description": "De-duplicate when appending lists"},
                             },
+                            "required": ["value"],
                         },
                     })
                 content, call_log = self._chat_with_tools(
@@ -216,11 +284,23 @@ class ClaudeAgentDriver(BaseAgentDriver):
 
             # The 'content' already contains the LLM's final response after seeing tool results
             # (if tools were called, the LLM has already incorporated their results)
-            return DriverResponse({
+            resp = DriverResponse({
                 "output": content,
                 "model": model,
                 "tool_call_log": call_log,
                 "status": "ok",
             })
+            # Passive memory write: extract names and save to connected memory nodes
+            try:
+                mem_specs = context.get("agent_memory_nodes") or []
+                detected = self._extract_names(str(input_text))
+                if content and isinstance(content, str):
+                    detected += [n for n in self._extract_names(content) if n not in detected]
+                self._save_names_to_memory(detected, mem_specs)
+                if os.getenv("DEBUG_TOOL_CALLS") and detected:
+                    print(f"[ClaudeAgentDriver] saved names to memory: {detected}")
+            except Exception:
+                pass
+            return resp
         except Exception as exc:
             return self._fallback_response(input_text, label, knowledge, tools, f"Claude error: {exc}")

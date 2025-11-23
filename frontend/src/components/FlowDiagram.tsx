@@ -959,6 +959,8 @@ function FlowDiagram() {
                   <option value="lowercase">Lowercase Input</option>
                   <option value="append">Append Suffix</option>
                   <option value="google_search">Google Search</option>
+                  <option value="save_memory">Save to Memory</option>
+                  <option value="append_memory">Append to Memory</option>
                 </select>
               </div>
               <div className="detail-item">
@@ -981,6 +983,50 @@ function FlowDiagram() {
                   placeholder={(selectedNode.data as any)?.operation === 'google_search' ? 'Optional: e.g., site:example.com OR extra keywords' : 'Used for Append'}
                 />
               </div>
+              {(['save_memory','append_memory'] as string[]).includes((selectedNode.data as any)?.operation) && (
+                <>
+                  <div className="detail-item">
+                    <strong>Namespace:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.namespace ?? 'default'}
+                      onChange={(e) => {
+                        const namespace = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), namespace } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), namespace } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="default"
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Key:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.key ?? 'names'}
+                      onChange={(e) => {
+                        const key = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), key } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), key } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="e.g., names"
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
           <div className="detail-item">
