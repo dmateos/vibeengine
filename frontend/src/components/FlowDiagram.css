@@ -384,6 +384,36 @@
   color: #1f2937;
 }
 
+/* OpenAI Agent Node */
+.openai-agent-node {
+  border-left: 4px solid #10a37f;
+  color: #10a37f;
+}
+
+.openai-agent-node .node-icon {
+  background: linear-gradient(135deg, #10a37f 0%, #0d8566 100%);
+  color: white;
+}
+
+.openai-agent-node .node-label {
+  color: #1f2937;
+}
+
+/* Claude Agent Node */
+.claude-agent-node {
+  border-left: 4px solid #d97757;
+  color: #d97757;
+}
+
+.claude-agent-node .node-icon {
+  background: linear-gradient(135deg, #d97757 0%, #c7613d 100%);
+  color: white;
+}
+
+.claude-agent-node .node-label {
+  color: #1f2937;
+}
+
 /* Condition Node */
 .condition-node {
   border-left: 4px solid #f59e0b;
@@ -402,6 +432,8 @@
 /* Improve label contrast in dark mode */
 :root[data-theme="dark"] .trigger-node .node-label,
 :root[data-theme="dark"] .action-node .node-label,
+:root[data-theme="dark"] .openai-agent-node .node-label,
+:root[data-theme="dark"] .claude-agent-node .node-label,
 :root[data-theme="dark"] .condition-node .node-label {
   color: var(--text-primary);
 }
