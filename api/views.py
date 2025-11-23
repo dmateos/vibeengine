@@ -167,7 +167,7 @@ def execute_workflow(request):
         tool_specs: List[Dict[str, Any]] = []
         tool_nodes_map: Dict[str, Any] = {}
         mem_knowledge: Dict[str, Any] = {}
-        if ntype == 'agent':
+        if ntype in ('openai_agent', 'claude_agent'):
             current_id = str(current.get('id'))
             # consider all edges connected to this agent
             for e in edges:
@@ -294,8 +294,8 @@ def execute_workflow(request):
             'result': res,
             'edgeId': used_edge.get('id') if isinstance(used_edge, dict) else None,
             'nextNodeId': nxt.get('id') if isinstance(nxt, dict) else None,
-            'usedMemory': used_memory if ntype == 'agent' else None,
-            'usedTools': used_tools if ntype == 'agent' else None,
+            'usedMemory': used_memory if ntype in ('openai_agent', 'claude_agent') else None,
+            'usedTools': used_tools if ntype in ('openai_agent', 'claude_agent') else None,
         })
 
         if ntype == 'output':

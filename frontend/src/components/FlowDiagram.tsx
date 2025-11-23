@@ -262,8 +262,8 @@ function FlowDiagram() {
         let sourceHandle = params.sourceHandle
         let data: any = undefined
         // Context edge: Agent <-> (Memory|Tool)
-        const isAgentSource = sourceType === 'agent' || sourceType === 'openai_agent' || sourceType === 'claude_agent'
-        const isAgentTarget = targetType === 'agent' || targetType === 'openai_agent' || targetType === 'claude_agent'
+        const isAgentSource = sourceType === 'openai_agent' || sourceType === 'claude_agent'
+        const isAgentTarget = targetType === 'openai_agent' || targetType === 'claude_agent'
         const isAgentContext =
           (isAgentSource && (targetType === 'memory' || targetType === 'tool')) ||
           (isAgentTarget && (sourceType === 'memory' || sourceType === 'tool'))
@@ -594,7 +594,7 @@ function FlowDiagram() {
                         {primary !== undefined && (
                           <span style={{ marginLeft: 8 }}>→ {typeof primary === 'object' ? JSON.stringify(primary) : String(primary)}</span>
                         )}
-                        {step.type === 'agent' && Array.isArray(res.tool_call_log) && res.tool_call_log.length > 0 && (
+                        {(step.type === 'openai_agent' || step.type === 'claude_agent') && Array.isArray(res.tool_call_log) && res.tool_call_log.length > 0 && (
                           <div style={{ marginTop: 4, marginLeft: 12, fontSize: '0.85em', color: 'var(--text-secondary)' }}>
                             {res.tool_call_log.map((tc: any, i: number) => (
                               <div key={i}>
@@ -669,33 +669,8 @@ function FlowDiagram() {
               />
             </div>
           )}
-          {(selectedNode.type === 'agent' || selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent') && (
+          {(selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent') && (
             <>
-              {selectedNode.type === 'agent' && (
-                <div className="detail-item">
-                  <strong>Provider:</strong>
-                  <select
-                    value={(selectedNode.data as any)?.provider ?? 'openai'}
-                    onChange={(e) => {
-                      const provider = e.target.value
-                      setNodes((nds) =>
-                        nds.map((n) =>
-                          n.id === selectedNode.id
-                            ? { ...n, data: { ...(n.data as any), provider } }
-                            : n
-                        )
-                      )
-                      setSelectedNode((prev) =>
-                        prev ? { ...prev, data: { ...(prev.data as any), provider } } : prev
-                      )
-                    }}
-                    style={{ marginLeft: 6 }}
-                  >
-                    <option value="openai">OpenAI</option>
-                    <option value="claude">Claude</option>
-                  </select>
-                </div>
-              )}
               <div className="detail-item">
                 <strong>Model:</strong>
                 <input
