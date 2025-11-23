@@ -7,8 +7,6 @@ router.register(r'node-types', views.NodeTypeViewSet, basename='nodetype')
 router.register(r'workflows', views.WorkflowViewSet, basename='workflow')
 
 urlpatterns = [
-    path('hello/', views.hello_world, name='hello_world'),
-    path('items/', views.get_items, name='get_items'),
     path('execute-node/', views.execute_node, name='execute_node'),
     path('execute-workflow/', views.execute_workflow, name='execute_workflow'),
     path('', include(router.urls)),

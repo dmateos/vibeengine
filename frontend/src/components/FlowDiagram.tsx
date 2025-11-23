@@ -914,6 +914,7 @@ function FlowDiagram() {
                   <option value="uppercase">Uppercase Input</option>
                   <option value="lowercase">Lowercase Input</option>
                   <option value="append">Append Suffix</option>
+                  <option value="google_search">Google Search</option>
                 </select>
               </div>
               <div className="detail-item">
@@ -933,7 +934,7 @@ function FlowDiagram() {
                     setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), arg } } : prev))
                   }}
                   style={{ width: '100%', marginLeft: 6 }}
-                  placeholder="Used for Append"
+                  placeholder={(selectedNode.data as any)?.operation === 'google_search' ? 'Optional: e.g., site:example.com OR extra keywords' : 'Used for Append'}
                 />
               </div>
             </>

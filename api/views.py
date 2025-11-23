@@ -1,37 +1,12 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets
-from datetime import datetime
 from .models import Workflow, NodeType
 from .serializers import WorkflowSerializer, NodeTypeSerializer
 from rest_framework import status
 from .drivers import execute_node_by_type
+from .orchestration import WorkflowExecutor
 from typing import Any, Dict, List, Optional
-from .memory_store import store
-
-
-@api_view(['GET'])
-def hello_world(request):
-    """Simple hello world endpoint"""
-    return Response({
-        'message': 'Hello from Django!',
-        'timestamp': datetime.now().isoformat(),
-        'status': 'success'
-    })
-
-
-@api_view(['GET'])
-def get_items(request):
-    """Sample endpoint that returns a list of items"""
-    items = [
-        {'id': 1, 'name': 'Item One', 'description': 'First sample item'},
-        {'id': 2, 'name': 'Item Two', 'description': 'Second sample item'},
-        {'id': 3, 'name': 'Item Three', 'description': 'Third sample item'},
-    ]
-    return Response({
-        'items': items,
-        'count': len(items)
-    })
 
 
 class NodeTypeViewSet(viewsets.ReadOnlyModelViewSet):
@@ -88,7 +63,8 @@ def execute_workflow(request):
     {
       "nodes": [ ... reactflow nodes ... ],
       "edges": [ ... reactflow edges ... ],
-      "context": { "input": "...", "params": {...}, "condition": bool, "state": {...} }
+      "context": { "input": "...", "params": {...}, "condition": bool, "state": {...} },
+      "startNodeId": "optional-node-id"
     }
 
     Routing rules:
@@ -105,212 +81,10 @@ def execute_workflow(request):
     context: Dict[str, Any] = payload.get('context') or {}
     start_node_id = payload.get('startNodeId')
 
-    if not nodes:
-        return Response({"status": "error", "error": "nodes are required"}, status=status.HTTP_400_BAD_REQUEST)
+    # Execute workflow using the orchestration layer
+    executor = WorkflowExecutor()
+    result = executor.execute(nodes, edges, context, start_node_id)
 
-    node_by_id: Dict[str, Dict[str, Any]] = {str(n.get('id')): n for n in nodes}
-    # helper to get type by id
-    def node_type_by_id(node_id: Optional[str]) -> Optional[str]:
-        if node_id is None:
-            return None
-        n = node_by_id.get(str(node_id))
-        return n.get('type') if n else None
-    outgoing: Dict[str, List[Dict[str, Any]]] = {}
-    incoming_count: Dict[str, int] = {str(n.get('id')): 0 for n in nodes}
-
-    for e in edges:
-        s = str(e.get('source'))
-        t = str(e.get('target'))
-        outgoing.setdefault(s, []).append(e)
-        if t in incoming_count:
-            incoming_count[t] += 1
-
-    # pick start node
-    start = None
-    if start_node_id is not None:
-        start = node_by_id.get(str(start_node_id))
-    if not start:
-        # first input node, else node with no incoming edges, else first
-        start = next((n for n in nodes if (n.get('type') == 'input')), None)
-    if not start:
-        start = next((n for n in nodes if incoming_count.get(str(n.get('id')), 0) == 0), None)
-    if not start and nodes:
-        start = nodes[0]
-
-    # If starting at an input node and no explicit workflow input provided, use node's configured value
-    if start and start.get('type') == 'input':
-        try:
-            node_val = (start.get('data') or {}).get('value')
-            if (context.get('input') is None) or (isinstance(context.get('input'), str) and context.get('input') == ''):
-                if node_val is not None:
-                    context['input'] = node_val
-        except Exception:
-            pass
-
-    current = start
-    steps = 0
-    max_steps = len(nodes) + len(edges) + 10
-    trace: List[Dict[str, Any]] = []
-    final_value: Any = None
-
-    # ensure mutable state in context
-    context.setdefault('state', {})
-
-    while current and steps < max_steps:
-        steps += 1
-        ntype = current.get('type')
-
-        # Build supplemental knowledge/tools for agents only
-        exec_context = dict(context)
-        used_memory: List[str] = []
-        used_tools: List[str] = []
-        tool_specs: List[Dict[str, Any]] = []
-        tool_nodes_map: Dict[str, Any] = {}
-        mem_knowledge: Dict[str, Any] = {}
-        if ntype in ('openai_agent', 'claude_agent'):
-            current_id = str(current.get('id'))
-            # consider all edges connected to this agent
-            for e in edges:
-                src = str(e.get('source'))
-                tgt = str(e.get('target'))
-                other_id = None
-                if src == current_id:
-                    other_id = tgt
-                elif tgt == current_id:
-                    other_id = src
-                if not other_id:
-                    continue
-                other = node_by_id.get(str(other_id))
-                if not other:
-                    continue
-                otype = other.get('type')
-                if otype == 'memory':
-                    data = (other.get('data') or {})
-                    key = data.get('key', 'memory')
-                    namespace = data.get('namespace') or 'default'
-                    store_key = f"{namespace}:{key}"
-                    val = store.get(store_key)
-                    mem_knowledge[key] = val
-                    used_memory.append(str(other.get('id')))
-                elif otype == 'tool':
-                    # Provide tool metadata to the agent; execution is driven by the agent via function calls
-                    tid = str(other.get('id'))
-                    odata = other.get('data') or {}
-                    tool_specs.append({
-                        'nodeId': tid,
-                        'name': odata.get('label') or f'Tool {tid}',
-                        'operation': odata.get('operation'),
-                        'arg': odata.get('arg'),
-                    })
-                    tool_nodes_map[tid] = other
-                    used_tools.append(tid)
-
-            if mem_knowledge:
-                exec_context['knowledge'] = mem_knowledge
-            if tool_specs:
-                exec_context['agent_tools'] = tool_specs
-                exec_context['agent_tool_nodes'] = tool_nodes_map
-
-        res = execute_node_by_type(ntype, current, exec_context)
-
-        if res.get('status') != 'ok':
-            return Response({
-                'status': 'error',
-                'error': res.get('error', 'node execution failed'),
-                'trace': trace,
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # propagate outputs into context
-        if 'state' in res:
-            # overwrite or merge state
-            context['state'] = res['state']
-        if 'output' in res:
-            context['input'] = res['output']
-            final_value = res['output']
-        if 'final' in res:
-            final_value = res['final']
-
-        # choose next node
-        cid = str(current.get('id'))
-        # exclude edges that point to memory/tool or missing/unknown targets from control flow
-        outs = []
-        for e in (outgoing.get(cid, []) or []):
-            tgt = str(e.get('target'))
-            tnode = node_by_id.get(tgt)
-            if not tnode:
-                # target node no longer exists (e.g., after delete/re-add); skip
-                continue
-            ttype = (tnode or {}).get('type')
-            if ttype in ('memory', 'tool'):
-                continue
-            outs.append(e)
-        nxt = None
-        used_edge = None
-        if not outs:
-            nxt = None
-        elif ntype == 'router':
-            route = res.get('route')
-            if route is not None:
-                # find edge with matching sourceHandle
-                for e in outs:
-                    if str(e.get('sourceHandle')) == str(route):
-                        nxt = node_by_id.get(str(e.get('target')))
-                        used_edge = e
-                        if nxt:
-                            break
-            # fallback to first edge
-            if not nxt and outs:
-                used_edge = outs[0]
-                nxt = node_by_id.get(str(outs[0].get('target')))
-        else:
-            if outs:
-                # prefer explicit data-flow handle ids if present
-                preferred = {'s', 'out', 'write', 'default'}
-                chosen = None
-                for e in outs:
-                    sh = str(e.get('sourceHandle')) if e.get('sourceHandle') is not None else ''
-                    if sh in preferred:
-                        chosen = e
-                        break
-                # if still not chosen and multiple outs, prefer certain target types
-                if not chosen and len(outs) > 1:
-                    priority = {
-                        'openai_agent': 9,
-                        'claude_agent': 9,
-                        'router': 8,
-                        'memory': 7,
-                        'output': 1,
-                    }
-                    def score(edge):
-                        tnode = node_by_id.get(str(edge.get('target')))
-                        ttype = (tnode or {}).get('type')
-                        return priority.get(ttype, 5)
-                    outs_sorted = sorted(outs, key=lambda e: score(e), reverse=True)
-                    chosen = outs_sorted[0]
-                if not chosen:
-                    chosen = outs[0]
-                used_edge = chosen
-                nxt = node_by_id.get(str(chosen.get('target')))
-
-        trace.append({
-            'nodeId': current.get('id'),
-            'type': ntype,
-            'result': res,
-            'edgeId': used_edge.get('id') if isinstance(used_edge, dict) else None,
-            'nextNodeId': nxt.get('id') if isinstance(nxt, dict) else None,
-            'usedMemory': used_memory if ntype in ('openai_agent', 'claude_agent') else None,
-            'usedTools': used_tools if ntype in ('openai_agent', 'claude_agent') else None,
-        })
-
-        if ntype == 'output':
-            break
-
-        current = nxt
-
-    return Response({
-        'status': 'ok',
-        'final': final_value,
-        'trace': trace,
-        'steps': steps,
-        'startNodeId': start.get('id') if start else None,
-    })
+    # Convert result to HTTP response
+    http_status = status.HTTP_200_OK if result.status == 'ok' else status.HTTP_400_BAD_REQUEST
+    return Response(result.to_dict(), status=http_status)
