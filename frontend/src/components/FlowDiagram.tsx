@@ -83,11 +83,24 @@ function FlowDiagram() {
   const [runningNodeId, setRunningNodeId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'log' | 'json'>('log')
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   useEffect(() => {
     loadWorkflows()
     loadNodeTypes()
   }, [])
+
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type })
+  }
 
   // Update node styling when running state changes
   useEffect(() => {
@@ -170,7 +183,7 @@ function FlowDiagram() {
 
   const saveWorkflow = async () => {
     if (!workflowName.trim()) {
-      alert('Please enter a workflow name')
+      showToast('Please enter a workflow name', 'error')
       return
     }
 
@@ -201,13 +214,13 @@ function FlowDiagram() {
       const savedWorkflow = await response.json()
       setCurrentWorkflow(savedWorkflow)
       await loadWorkflows()
-      alert('Workflow saved successfully!')
+      showToast('Workflow saved successfully!', 'success')
       try {
         localStorage.setItem('lastWorkflowId', String(savedWorkflow.id))
       } catch {}
     } catch (error) {
       console.error('Error saving workflow:', error)
-      alert('Error saving workflow')
+      showToast('Error saving workflow', 'error')
     } finally {
       setSaving(false)
     }
@@ -235,6 +248,7 @@ function FlowDiagram() {
       if (currentWorkflow?.id === id) {
         createNewWorkflow()
       }
+      showToast('Workflow deleted successfully', 'success')
       try {
         const lastId = localStorage.getItem('lastWorkflowId')
         if (lastId && parseInt(lastId) === id) {
@@ -243,11 +257,21 @@ function FlowDiagram() {
       } catch {}
     } catch (error) {
       console.error('Error deleting workflow:', error)
-      alert('Error deleting workflow')
+      showToast('Error deleting workflow', 'error')
     }
   }
 
   const addNode = (nodeType: NodeTypeData) => {
+    // Better positioning: arrange nodes in a grid pattern to prevent overlap
+    const gridCols = 3
+    const nodeWidth = 280 // approximate node width including spacing
+    const nodeHeight = 180 // approximate node height including spacing
+    const startX = 100
+    const startY = 100
+
+    const col = nodes.length % gridCols
+    const row = Math.floor(nodes.length / gridCols)
+
     const newNode: Node = {
       id: `node-${Date.now()}`,
       type: nodeType.name,
@@ -255,11 +279,15 @@ function FlowDiagram() {
         label: `New ${nodeType.display_name}`,
         icon: nodeType.icon,
       },
-      position: { x: 250, y: 100 + nodes.length * 50 },
+      position: {
+        x: startX + col * nodeWidth,
+        y: startY + row * nodeHeight
+      },
     }
 
     setNodes((nds) => [...nds, newNode])
     setShowAddNodeMenu(false)
+    showToast(`Added ${nodeType.display_name}`, 'success')
   }
 
   const onConnect = useCallback(
@@ -280,7 +308,7 @@ function FlowDiagram() {
           className = 'edge-tool'
         }
 
-        // Prefer the Agent right-side handle for lateral (Agent -> Memory) links
+        // Prefer the Agent right-side handle for lateral (Agent -> Memory/Tool) links
         let sourceHandle = params.sourceHandle
         let data: any = undefined
         // Context edge: Agent <-> (Memory|Tool)
@@ -292,7 +320,7 @@ function FlowDiagram() {
         if (isAgentContext) {
           data = { context: true }
         }
-        if (isAgentSource && targetType === 'memory') {
+        if (isAgentSource && (targetType === 'memory' || targetType === 'tool')) {
           sourceHandle = 'r'
         }
 
@@ -313,6 +341,39 @@ function FlowDiagram() {
     setSelectedNode(node)
     setExecutionResult(null)
   }, [])
+
+  // Handle node deletion
+  const onNodesDelete = useCallback((deleted: Node[]) => {
+    const deletedIds = new Set(deleted.map(n => n.id))
+    if (selectedNode && deletedIds.has(selectedNode.id)) {
+      setSelectedNode(null)
+    }
+    showToast(`Deleted ${deleted.length} node${deleted.length > 1 ? 's' : ''}`, 'info')
+  }, [selectedNode])
+
+  // Handle edge deletion
+  const onEdgesDelete = useCallback((deleted: Edge[]) => {
+    showToast(`Deleted ${deleted.length} edge${deleted.length > 1 ? 's' : ''}`, 'info')
+  }, [])
+
+  const deleteSelectedNode = () => {
+    if (!selectedNode) return
+
+    setNodes(nds => nds.filter(n => n.id !== selectedNode.id))
+    setSelectedNode(null)
+    showToast('Node deleted', 'info')
+  }
+
+  const deleteSelectedEdges = () => {
+    const selectedEdges = edges.filter(e => e.selected)
+    if (selectedEdges.length === 0) {
+      showToast('No edges selected', 'info')
+      return
+    }
+
+    setEdges(eds => eds.filter(e => !e.selected))
+    showToast(`Deleted ${selectedEdges.length} edge${selectedEdges.length > 1 ? 's' : ''}`, 'info')
+  }
 
   const executeSelectedNode = async () => {
     if (!selectedNode) return
@@ -438,18 +499,20 @@ function FlowDiagram() {
       <div className="flow-header">
         <div className="flow-title">
           <h2>Workflow Designer</h2>
-          <input
-            type="text"
-            value={workflowName}
-            onChange={(e) => setWorkflowName(e.target.value)}
-            placeholder="Workflow name..."
-            className="workflow-name-input"
-          />
-          {currentWorkflow && (
-            <span className="workflow-status">
-              Last saved: {new Date(currentWorkflow.updated_at).toLocaleString()}
-            </span>
-          )}
+          <div className="workflow-name-container">
+            <input
+              type="text"
+              value={workflowName}
+              onChange={(e) => setWorkflowName(e.target.value)}
+              placeholder="Workflow name..."
+              className="workflow-name-input"
+            />
+            {currentWorkflow && (
+              <span className="workflow-status">
+                Last saved: {new Date(currentWorkflow.updated_at).toLocaleString()}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flow-actions">
           <div className="add-node-dropdown">
@@ -509,6 +572,13 @@ function FlowDiagram() {
           >
             {running ? 'Running...' : 'Run From Selected'}
           </button>
+          <button
+            className="btn-delete"
+            onClick={deleteSelectedEdges}
+            title="Delete selected edges"
+          >
+            Delete Edges
+          </button>
         </div>
       </div>
 
@@ -557,6 +627,8 @@ function FlowDiagram() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onNodesDelete={onNodesDelete}
+          onEdgesDelete={onEdgesDelete}
           nodeTypes={nodeTypes}
           onInit={(inst) => setRfInstance(inst)}
           defaultEdgeOptions={{
@@ -573,6 +645,7 @@ function FlowDiagram() {
           connectionLineStyle={{ strokeWidth: 2.5, stroke: '#667eea' }}
           panOnDrag={[2]} /* right mouse only, avoid accidental pans while connecting */
           fitView
+          deleteKeyCode={null} /* Disable default delete behavior, we'll handle it with keyboard shortcuts */
           attributionPosition="bottom-left"
         >
           <Controls />
@@ -875,12 +948,36 @@ function FlowDiagram() {
               </pre>
             </div>
           )}
-          <button
-            className="btn-close"
-            onClick={() => setSelectedNode(null)}
-          >
-            Close
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <button
+              className="btn-delete"
+              onClick={deleteSelectedNode}
+              style={{ flex: 1 }}
+            >
+              Delete Node
+            </button>
+            <button
+              className="btn-close"
+              onClick={() => setSelectedNode(null)}
+              style={{ flex: 1 }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>
+          <div className="toast-content">
+            <span className="toast-icon">
+              {toast.type === 'success' && '✓'}
+              {toast.type === 'error' && '✕'}
+              {toast.type === 'info' && 'ℹ'}
+            </span>
+            <span className="toast-message">{toast.message}</span>
+          </div>
         </div>
       )}
     </div>

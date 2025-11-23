@@ -271,8 +271,8 @@ def execute_workflow(request):
                 # if still not chosen and multiple outs, prefer certain target types
                 if not chosen and len(outs) > 1:
                     priority = {
-                        'tool': 10,
-                        'agent': 9,
+                        'openai_agent': 9,
+                        'claude_agent': 9,
                         'router': 8,
                         'memory': 7,
                         'output': 1,
