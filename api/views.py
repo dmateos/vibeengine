@@ -5,8 +5,11 @@ from .models import Workflow, NodeType
 from .serializers import WorkflowSerializer, NodeTypeSerializer
 from rest_framework import status
 from .drivers import execute_node_by_type
-from .orchestration import WorkflowExecutor
+from .orchestration import WorkflowExecutor, PollingExecutor
 from typing import Any, Dict, List, Optional
+from django.core.cache import cache
+import threading
+import uuid
 
 
 class NodeTypeViewSet(viewsets.ReadOnlyModelViewSet):
@@ -88,3 +91,95 @@ def execute_workflow(request):
     # Convert result to HTTP response
     http_status = status.HTTP_200_OK if result.status == 'ok' else status.HTTP_400_BAD_REQUEST
     return Response(result.to_dict(), status=http_status)
+
+
+@api_view(['POST'])
+def execute_workflow_async(request):
+    """
+    Execute a workflow asynchronously in a background thread.
+
+    Returns immediately with an execution ID that can be used to poll for status.
+
+    Expected payload:
+    {
+      "nodes": [ ... reactflow nodes ... ],
+      "edges": [ ... reactflow edges ... ],
+      "context": { "input": "...", "params": {...}, "condition": bool, "state": {...} },
+      "startNodeId": "optional-node-id"
+    }
+
+    Returns:
+    {
+      "executionId": "uuid-string",
+      "status": "started"
+    }
+    """
+    payload = request.data or {}
+    nodes: List[Dict[str, Any]] = payload.get('nodes') or []
+    edges: List[Dict[str, Any]] = payload.get('edges') or []
+    context: Dict[str, Any] = payload.get('context') or {}
+    start_node_id = payload.get('startNodeId')
+
+    if not nodes:
+        return Response(
+            {"status": "error", "error": "nodes are required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Generate unique execution ID
+    execution_id = str(uuid.uuid4())
+
+    # Define background execution function
+    def execute_in_background():
+        try:
+            executor = PollingExecutor(execution_id=execution_id)
+            executor.execute(nodes, edges, context, start_node_id)
+        except Exception as e:
+            # Update cache with error
+            cache.set(f'execution_{execution_id}', {
+                'status': 'error',
+                'error': str(e),
+                'currentNodeId': None,
+                'completedNodes': [],
+                'errorNodes': [],
+                'trace': []
+            }, timeout=300)
+
+    # Start background thread
+    thread = threading.Thread(target=execute_in_background, daemon=True)
+    thread.start()
+
+    return Response({
+        'executionId': execution_id,
+        'status': 'started'
+    }, status=status.HTTP_202_ACCEPTED)
+
+
+@api_view(['GET'])
+def execution_status(request, execution_id):
+    """
+    Get the current status of a workflow execution.
+
+    Returns:
+    {
+      "status": "running" | "completed" | "error" | "not_found",
+      "currentNodeId": "node-id" | null,
+      "completedNodes": ["node-id-1", "node-id-2", ...],
+      "errorNodes": ["node-id", ...],
+      "trace": [...],
+      "steps": 5,
+      "final": "result value" | null,
+      "error": "error message" | null,
+      "timestamp": 1234567890.123
+    }
+    """
+    cache_key = f'execution_{execution_id}'
+    execution_state = cache.get(cache_key)
+
+    if execution_state is None:
+        return Response({
+            'status': 'not_found',
+            'error': 'Execution not found or expired'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(execution_state, status=status.HTTP_200_OK)

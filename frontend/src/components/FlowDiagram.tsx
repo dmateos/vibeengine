@@ -11,7 +11,6 @@ import {
   ConnectionLineType,
   ConnectionMode,
   MarkerType,
-  type ReactFlowInstance,
   type Node,
   type Edge,
   type Connection,
@@ -26,6 +25,7 @@ import ClaudeAgentNode from './nodes/ClaudeAgentNode'
 import ToolNode from './nodes/ToolNode'
 import RouterNode from './nodes/RouterNode'
 import MemoryNode from './nodes/MemoryNode'
+import { usePolling } from '../hooks/usePolling'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
@@ -80,10 +80,64 @@ function FlowDiagram() {
   const [workflowInput, setWorkflowInput] = useState('')
   const [workflowResult, setWorkflowResult] = useState<any>(null)
   const [running, setRunning] = useState(false)
-  const [runningNodeId, setRunningNodeId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'log' | 'json'>('log')
-  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+
+  // Polling hook for async workflow execution
+  const { state: executionState, startExecution } = usePolling()
+
+  // Update node classes based on execution state
+  useEffect(() => {
+    if (executionState.status === 'idle') return
+
+    setNodes((nds) =>
+      nds.map((n) => {
+        const classes = []
+
+        // Running state
+        if (executionState.currentNodeId === n.id) {
+          classes.push('node-running')
+        }
+
+        // Completed state
+        if (executionState.completedNodes.includes(n.id)) {
+          classes.push('node-completed')
+        }
+
+        // Error state
+        if (executionState.errorNodes.includes(n.id)) {
+          classes.push('node-error')
+        }
+
+        return {
+          ...n,
+          className: classes.join(' ')
+        }
+      })
+    )
+  }, [executionState, setNodes])
+
+  // Update workflow result when execution completes
+  useEffect(() => {
+    if (executionState.status === 'completed') {
+      setWorkflowResult({
+        status: 'ok',
+        final: executionState.final,
+        trace: executionState.trace,
+        steps: executionState.steps
+      })
+      setRunning(false)
+    } else if (executionState.status === 'error') {
+      setWorkflowResult({
+        status: 'error',
+        error: executionState.error,
+        trace: executionState.trace
+      })
+      setRunning(false)
+    } else if (executionState.status === 'running') {
+      setRunning(true)
+    }
+  }, [executionState])
 
   useEffect(() => {
     loadWorkflows()
@@ -101,27 +155,6 @@ function FlowDiagram() {
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type })
   }
-
-  // Update node styling when running state changes
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((n) => {
-        const isRunning = runningNodeId === n.id
-        const classes = (n.className || '')
-          .split(' ')
-          .filter((c) => c && c !== 'node-running')
-
-        if (isRunning) {
-          classes.push('node-running')
-        }
-
-        return {
-          ...n,
-          className: classes.filter(Boolean).join(' '),
-        }
-      })
-    )
-  }, [runningNodeId, setNodes])
 
   const loadNodeTypes = async () => {
     try {
@@ -413,98 +446,21 @@ function FlowDiagram() {
     setRunning(true)
     setWorkflowResult(null)
 
-    // Find the start node to highlight it
-    let startNodeId: string | null = null
+    // Determine start node
+    let startNodeId: string | undefined = undefined
     if (opts?.fromSelected && selectedNode) {
       startNodeId = selectedNode.id
-    } else {
-      // Find the first input node
-      const inputNode = nodes.find(n => n.type === 'input')
-      if (inputNode) {
-        startNodeId = inputNode.id
-      } else {
-        // Fallback to first node
-        if (nodes.length > 0) {
-          startNodeId = nodes[0].id
-        }
-      }
     }
 
-    // Highlight the running node
-    if (startNodeId) {
-      setRunningNodeId(startNodeId)
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/execute-workflow/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nodes,
-          edges,
-          context: {
-            input: workflowInput,
-          },
-          ...(opts?.fromSelected && selectedNode ? { startNodeId: selectedNode.id } : {}),
-        }),
-      })
-      const data = await response.json()
-      setWorkflowResult(data)
-
-      // Clear running state
-      setRunningNodeId(null)
-
-      // Highlight active path
-      const activeEdgeIds = new Set<string>()
-      const activeNodeIds = new Set<string>()
-      if (Array.isArray(data?.trace)) {
-        data.trace.forEach((step: any) => {
-          if (step?.nodeId) activeNodeIds.add(String(step.nodeId))
-          if (step?.edgeId) activeEdgeIds.add(String(step.edgeId))
-        })
-      }
-      setEdges((eds) =>
-        eds.map((e) => ({
-          ...e,
-          className: [
-            (e.className || '')
-              .split(' ')
-              .filter((c) => c && c !== 'edge-active')
-              .join(' '),
-            activeEdgeIds.has(e.id) ? 'edge-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' '),
-        }))
-      )
-      setNodes((nds) =>
-        nds.map((n) => ({
-          ...n,
-          className: [
-            (n.className || '')
-              .split(' ')
-              .filter((c) => c && c !== 'node-active')
-              .join(' '),
-            activeNodeIds.has(n.id) ? 'node-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' '),
-        }))
-      )
-
-      // Fit view to active nodes
-      if (rfInstance && activeNodeIds.size > 0) {
-        const nodesToFit = nodes.filter((n) => activeNodeIds.has(n.id))
-        if (nodesToFit.length) {
-          rfInstance.fitView({ nodes: nodesToFit, padding: 0.2, duration: 400 })
-        }
-      }
-    } catch (err) {
-      setWorkflowResult({ status: 'error', error: String(err) })
-      setRunningNodeId(null)  // Clear running state on error
-    } finally {
-      setRunning(false)
-    }
+    // Start async execution with polling
+    await startExecution(
+      nodes,
+      edges,
+      {
+        input: workflowInput,
+      },
+      startNodeId
+    )
   }
 
   return (
@@ -643,7 +599,6 @@ function FlowDiagram() {
           onNodesDelete={onNodesDelete}
           onEdgesDelete={onEdgesDelete}
           nodeTypes={nodeTypes}
-          onInit={(inst) => setRfInstance(inst)}
           defaultEdgeOptions={{
             type: 'smoothstep',
             animated: true,

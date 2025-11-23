@@ -9,5 +9,7 @@ router.register(r'workflows', views.WorkflowViewSet, basename='workflow')
 urlpatterns = [
     path('execute-node/', views.execute_node, name='execute_node'),
     path('execute-workflow/', views.execute_workflow, name='execute_workflow'),
+    path('execute-workflow-async/', views.execute_workflow_async, name='execute_workflow_async'),
+    path('execution/<str:execution_id>/status/', views.execution_status, name='execution_status'),
     path('', include(router.urls)),
 ]

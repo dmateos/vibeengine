@@ -610,24 +610,6 @@
   box-shadow: 0 12px 28px rgba(59, 130, 246, 0.18), 0 4px 12px rgba(59, 130, 246, 0.16);
 }
 
-/* Node emphasis for currently running node */
-.react-flow__node.node-running .custom-node {
-  border-color: #ef4444;
-  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(239, 68, 68, 0.3);
-  animation: pulse-running 1s ease-in-out infinite;
-}
-
-@keyframes pulse-running {
-  0%, 100% {
-    box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(239, 68, 68, 0.3);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow: 0 16px 40px rgba(239, 68, 68, 0.6), 0 6px 16px rgba(239, 68, 68, 0.5);
-    transform: scale(1.02);
-  }
-}
-
 /* Toast Notifications */
 .toast {
   position: fixed;
@@ -701,6 +683,35 @@
   font-weight: 500;
   line-height: 1.4;
   flex: 1;
+}
+
+/* Node execution states - target the .custom-node inside */
+.react-flow__node.node-running .custom-node {
+  border-color: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: #ef4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    border-color: #f87171;
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.react-flow__node.node-completed .custom-node {
+  border-color: #22c55e;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.react-flow__node.node-error .custom-node {
+  border-color: #ef4444;
+  background: #fee2e2;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 /* Responsive */
