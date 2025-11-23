@@ -70,6 +70,14 @@ class MemoryStore:
                 return
         self._backend.set(key, value)
 
+    def clear(self) -> None:
+        """Clear all stored data."""
+        if isinstance(self._backend, _InProcessStore):
+            self._backend._data.clear()
+        elif hasattr(self._backend, 'flushdb'):
+            # Redis backend
+            self._backend.flushdb()
+
 
 store = MemoryStore()
 

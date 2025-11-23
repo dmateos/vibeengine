@@ -1,3 +1,3 @@
-from django.test import TestCase
-
-# Create your tests here.
+from .tests.test_workflow_executor import *
+from .tests.test_drivers import *
+from .tests.test_views import *

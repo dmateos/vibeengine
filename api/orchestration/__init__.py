@@ -1,3 +1,3 @@
-from .workflow_executor import WorkflowExecutor
+from .workflow_executor import WorkflowExecutor, ExecutionResult
 
-__all__ = ["WorkflowExecutor"]
+__all__ = ["WorkflowExecutor", "ExecutionResult"]
