@@ -80,6 +80,7 @@ function FlowDiagram() {
   const [workflowInput, setWorkflowInput] = useState('')
   const [workflowResult, setWorkflowResult] = useState<any>(null)
   const [running, setRunning] = useState(false)
+  const [runningNodeId, setRunningNodeId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'log' | 'json'>('log')
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
 
@@ -87,6 +88,27 @@ function FlowDiagram() {
     loadWorkflows()
     loadNodeTypes()
   }, [])
+
+  // Update node styling when running state changes
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((n) => {
+        const isRunning = runningNodeId === n.id
+        const classes = (n.className || '')
+          .split(' ')
+          .filter((c) => c && c !== 'node-running')
+
+        if (isRunning) {
+          classes.push('node-running')
+        }
+
+        return {
+          ...n,
+          className: classes.filter(Boolean).join(' '),
+        }
+      })
+    )
+  }, [runningNodeId, setNodes])
 
   const loadNodeTypes = async () => {
     try {
@@ -316,6 +338,29 @@ function FlowDiagram() {
   const executeWorkflow = async (opts?: { fromSelected?: boolean }) => {
     setRunning(true)
     setWorkflowResult(null)
+
+    // Find the start node to highlight it
+    let startNodeId: string | null = null
+    if (opts?.fromSelected && selectedNode) {
+      startNodeId = selectedNode.id
+    } else {
+      // Find the first input node
+      const inputNode = nodes.find(n => n.type === 'input')
+      if (inputNode) {
+        startNodeId = inputNode.id
+      } else {
+        // Fallback to first node
+        if (nodes.length > 0) {
+          startNodeId = nodes[0].id
+        }
+      }
+    }
+
+    // Highlight the running node
+    if (startNodeId) {
+      setRunningNodeId(startNodeId)
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/execute-workflow/`, {
         method: 'POST',
@@ -331,6 +376,9 @@ function FlowDiagram() {
       })
       const data = await response.json()
       setWorkflowResult(data)
+
+      // Clear running state
+      setRunningNodeId(null)
 
       // Highlight active path
       const activeEdgeIds = new Set<string>()
@@ -379,6 +427,7 @@ function FlowDiagram() {
       }
     } catch (err) {
       setWorkflowResult({ status: 'error', error: String(err) })
+      setRunningNodeId(null)  // Clear running state on error
     } finally {
       setRunning(false)
     }

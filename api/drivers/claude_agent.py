@@ -172,6 +172,8 @@ class ClaudeAgentDriver(BaseAgentDriver):
             # If agent_tools are provided, enable tool calling
             agent_tools: List[Dict[str, Any]] = context.get("agent_tools") or []
             tool_nodes: Dict[str, Any] = context.get("agent_tool_nodes") or {}
+            call_log: List[Dict[str, Any]] = []  # Initialize call_log
+
             if agent_tools:
                 tool_defs: List[Dict[str, Any]] = []
                 for t in agent_tools:
@@ -211,10 +213,12 @@ class ClaudeAgentDriver(BaseAgentDriver):
                 }
                 content = self._post_chat(base_url, payload, headers)
 
+            # The 'content' already contains the LLM's final response after seeing tool results
+            # (if tools were called, the LLM has already incorporated their results)
             return DriverResponse({
                 "output": content,
                 "model": model,
-                "tool_call_log": call_log if agent_tools else [],
+                "tool_call_log": call_log,
                 "status": "ok",
             })
         except Exception as exc:
