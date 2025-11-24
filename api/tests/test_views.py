@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch
-from api.models import Workflow, NodeType
+from api.models import Workflow
 from api.drivers import DriverResponse
 from api.orchestration import ExecutionResult
 
@@ -448,75 +448,56 @@ class WorkflowModelViewSetTestCase(TestCase):
         self.assertEqual(Workflow.objects.count(), 0)
 
 
-class NodeTypeViewSetTestCase(TestCase):
-    """Test suite for NodeType read-only viewset."""
+class NodeTypeListTestCase(TestCase):
+    """Test suite for node types API endpoint (file-based)."""
 
     def setUp(self):
         self.client = APIClient()
         self.list_url = '/api/node-types/'
 
     def test_list_node_types(self):
-        """Test listing node types."""
-        # Clear existing node types from migrations
-        NodeType.objects.all().delete()
-
-        NodeType.objects.create(
-            name='test_input',
-            display_name='Input',
-            icon='📥',
-            color='#00ff00'
-        )
-        NodeType.objects.create(
-            name='test_output',
-            display_name='Output',
-            icon='📤',
-            color='#ff0000'
-        )
-
+        """Test listing node types from node_types.py."""
         response = self.client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertIsInstance(response.data, list)
+        self.assertGreater(len(response.data), 0)
 
-    def test_retrieve_node_type(self):
-        """Test retrieving a specific node type."""
-        node_type = NodeType.objects.create(
-            name='test',
-            display_name='Test Node',
-            icon='🔧',
-            color='#0000ff'
-        )
-        url = f'/api/node-types/{node_type.id}/'
+        # Verify structure of returned data
+        first_node_type = response.data[0]
+        self.assertIn('id', first_node_type)
+        self.assertIn('name', first_node_type)
+        self.assertIn('display_name', first_node_type)
+        self.assertIn('icon', first_node_type)
+        self.assertIn('color', first_node_type)
+        self.assertIn('description', first_node_type)
+        self.assertIn('category', first_node_type)
 
-        response = self.client.get(url)
+    def test_node_types_includes_expected_types(self):
+        """Test that common node types are included."""
+        response = self.client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['name'], 'test')
 
-    def test_create_node_type_not_allowed(self):
-        """Test that creating node types via API is not allowed (read-only)."""
+        node_names = [nt['name'] for nt in response.data]
+
+        # Check for some expected node types
+        self.assertIn('input', node_names)
+        self.assertIn('output', node_names)
+        self.assertIn('openai_agent', node_names)
+        self.assertIn('claude_agent', node_names)
+        self.assertIn('condition', node_names)
+        self.assertIn('json_validator', node_names)
+
+    def test_node_types_read_only(self):
+        """Test that node types API is read-only."""
         payload = {
             'name': 'new_type',
             'display_name': 'New Type',
-            'icon': '🆕',
+            'icon': '✨',
             'color': '#ffffff'
         }
         response = self.client.post(self.list_url, payload, format='json')
 
-        # Should be forbidden (405 Method Not Allowed for read-only viewset)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def test_delete_node_type_not_allowed(self):
-        """Test that deleting node types via API is not allowed (read-only)."""
-        node_type = NodeType.objects.create(
-            name='test',
-            display_name='Test',
-            icon='🔧',
-            color='#000000'
-        )
-        url = f'/api/node-types/{node_type.id}/'
-
-        response = self.client.delete(url)
-
-        # Should be forbidden (405 Method Not Allowed for read-only viewset)
+        # Should be forbidden (405 Method Not Allowed)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)

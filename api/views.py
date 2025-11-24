@@ -1,24 +1,36 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets
-from .models import Workflow, NodeType
-from .serializers import WorkflowSerializer, NodeTypeSerializer
+from .models import Workflow
+from .serializers import WorkflowSerializer
 from rest_framework import status
 from .drivers import execute_node_by_type
 from .orchestration import WorkflowExecutor, PollingExecutor
+from .node_types import get_all_node_types
 from typing import Any, Dict, List, Optional
 from django.core.cache import cache
 import threading
 import uuid
 
 
-class NodeTypeViewSet(viewsets.ReadOnlyModelViewSet):
+@api_view(['GET'])
+def node_types_list(request):
     """
     API endpoint for retrieving node types.
-    Read-only access to available node types.
+    Returns node type definitions from node_types.py.
     """
-    queryset = NodeType.objects.all()
-    serializer_class = NodeTypeSerializer
+    node_types = get_all_node_types()
+
+    # Convert to list format expected by frontend (with id field for compatibility)
+    result = []
+    for idx, (name, definition) in enumerate(node_types.items(), start=1):
+        result.append({
+            'id': idx,
+            'name': name,
+            **definition
+        })
+
+    return Response(result)
 
 
 class WorkflowViewSet(viewsets.ModelViewSet):

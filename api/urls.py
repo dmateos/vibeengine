@@ -3,10 +3,10 @@ from rest_framework.routers import DefaultRouter
 from . import views
 
 router = DefaultRouter()
-router.register(r'node-types', views.NodeTypeViewSet, basename='nodetype')
 router.register(r'workflows', views.WorkflowViewSet, basename='workflow')
 
 urlpatterns = [
+    path('node-types/', views.node_types_list, name='node_types_list'),
     path('execute-node/', views.execute_node, name='execute_node'),
     path('execute-workflow/', views.execute_workflow, name='execute_workflow'),
     path('execute-workflow-async/', views.execute_workflow_async, name='execute_workflow_async'),

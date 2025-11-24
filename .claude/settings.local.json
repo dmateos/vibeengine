@@ -12,7 +12,8 @@
       "Bash(npm run build:*)",
       "Bash(python:*)",
       "Bash(timeout 5 npm run dev)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

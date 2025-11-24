@@ -1,12 +1,5 @@
 from rest_framework import serializers
-from .models import Workflow, NodeType
-
-
-class NodeTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = NodeType
-        fields = ['id', 'name', 'display_name', 'icon', 'color', 'description', 'category']
-        read_only_fields = ['id']
+from .models import Workflow
 
 
 class WorkflowSerializer(serializers.ModelSerializer):
