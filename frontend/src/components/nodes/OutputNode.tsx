@@ -7,7 +7,7 @@ interface OutputNodeData {
 
 function OutputNode({ data }: { data: OutputNodeData }) {
   return (
-    <div className="custom-node action-node">
+    <div className="custom-node output-node">
       <Handle type="target" position={Position.Top} id="t" />
       <div className="node-icon">{data.icon}</div>
       <div className="node-content">
