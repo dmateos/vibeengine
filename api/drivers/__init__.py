@@ -11,6 +11,7 @@ from .output import OutputDriver
 from .memory import MemoryDriver
 from .parallel import ParallelDriver
 from .join import JoinDriver
+from .json_validator import JSONValidatorDriver
 
 
 # Registry of all available drivers
@@ -26,6 +27,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     MemoryDriver.type: MemoryDriver(),
     ParallelDriver.type: ParallelDriver(),
     JoinDriver.type: JoinDriver(),
+    JSONValidatorDriver.type: JSONValidatorDriver(),
 }
 
 
@@ -70,6 +72,7 @@ __all__ = [
     "MemoryDriver",
     "ParallelDriver",
     "JoinDriver",
+    "JSONValidatorDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]

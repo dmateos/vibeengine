@@ -26,6 +26,7 @@ import OllamaAgentNode from './nodes/OllamaAgentNode'
 import ToolNode from './nodes/ToolNode'
 import RouterNode from './nodes/RouterNode'
 import ConditionNode from './nodes/ConditionNode'
+import ValidatorNode from './nodes/ValidatorNode'
 import MemoryNode from './nodes/MemoryNode'
 import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
@@ -63,6 +64,7 @@ const nodeTypes = {
   tool: ToolNode,
   router: RouterNode,
   condition: ConditionNode,
+  json_validator: ValidatorNode,
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,

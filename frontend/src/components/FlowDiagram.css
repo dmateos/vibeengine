@@ -578,6 +578,22 @@
   color: #1f2937;
 }
 
+/* Validator Node */
+.validator-node {
+  background: var(--card-bg);
+  border-left: 4px solid #14b8a6;
+  color: #14b8a6;
+}
+
+.validator-node .node-icon {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  color: white;
+}
+
+.validator-node .node-label {
+  color: #1f2937;
+}
+
 /* Improve styling in dark mode */
 :root[data-theme="dark"] .trigger-node {
   background: var(--card-bg) !important;
@@ -616,6 +632,10 @@
 }
 
 :root[data-theme="dark"] .condition-node .node-label {
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .validator-node .node-label {
   color: var(--text-primary);
 }
 
