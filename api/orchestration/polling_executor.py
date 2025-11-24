@@ -81,9 +81,21 @@ class PollingExecutor(WorkflowExecutor):
     def _on_node_complete(self, node: Dict[str, Any], result: Dict[str, Any],
                          completed_nodes: List[str], trace: List[Dict[str, Any]], steps: int) -> None:
         """Update cache when a node completes."""
+        # Track nodes that encountered errors (but continued execution)
+        cache_key = f'execution_{self.execution_id}'
+        state = cache.get(cache_key, {})
+        error_nodes = state.get('errorNodes', [])
+
+        # If node has had_error flag, track it
+        if result.get('had_error'):
+            node_id = str(node.get('id'))
+            if node_id not in error_nodes:
+                error_nodes.append(node_id)
+
         self._update_cache(
             currentNodeId=None,
             completedNodes=completed_nodes,
+            errorNodes=error_nodes,
             trace=trace,
             steps=steps
         )

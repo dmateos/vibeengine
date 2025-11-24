@@ -1,6 +1,7 @@
 from django.test import TestCase
 from unittest.mock import patch, MagicMock
 from api.orchestration import WorkflowExecutor
+from api.orchestration.polling_executor import PollingExecutor
 from api.drivers import DriverResponse
 
 
@@ -344,3 +345,308 @@ class WorkflowExecutorTestCase(TestCase):
 
         result = self.executor.execute(nodes=nodes, edges=edges, context={'input': 'test'})
         self.assertEqual(result.start_node_id, '1')
+
+
+class ParallelExecutionTestCase(TestCase):
+    """Test suite for parallel execution in WorkflowExecutor."""
+
+    def setUp(self):
+        self.executor = WorkflowExecutor()
+
+    def test_parallel_node_executes_all_branches(self):
+        """Test that parallel node executes all connected branches."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'start'}},
+            {'id': '2', 'type': 'parallel', 'data': {}},
+            {'id': '3', 'type': 'input', 'data': {'value': 'branch1'}},  # branch 1
+            {'id': '4', 'type': 'input', 'data': {'value': 'branch2'}},  # branch 2
+            {'id': '5', 'type': 'join', 'data': {}},
+            {'id': '6', 'type': 'output', 'data': {}}
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2', 'sourceHandle': 'branch_0'},
+            {'source': '2', 'target': '4', 'id': 'e3', 'sourceHandle': 'branch_1'},
+            {'source': '3', 'target': '5', 'id': 'e4'},
+            {'source': '4', 'target': '5', 'id': 'e5'},
+            {'source': '5', 'target': '6', 'id': 'e6'}
+        ]
+
+        result = self.executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        # Should have executed: input, parallel, branch1, branch2, join, output
+        # Trace includes entries for all executed nodes
+        self.assertGreater(len(result.trace), 3)
+
+    def test_parallel_branches_receive_same_input(self):
+        """Test that all parallel branches receive the same input."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'shared input'}},
+            {'id': '2', 'type': 'parallel', 'data': {}},
+            {'id': '3', 'type': 'input', 'data': {'value': 'branch1'}},
+            {'id': '4', 'type': 'input', 'data': {'value': 'branch2'}},
+            {'id': '5', 'type': 'join', 'data': {'merge_strategy': 'list'}},
+            {'id': '6', 'type': 'output', 'data': {}}
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2'},
+            {'source': '2', 'target': '4', 'id': 'e3'},
+            {'source': '3', 'target': '5', 'id': 'e4'},
+            {'source': '4', 'target': '5', 'id': 'e5'},
+            {'source': '5', 'target': '6', 'id': 'e6'}
+        ]
+
+        result = self.executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        # Should execute all nodes including both branches
+        executed_nodes = [t['nodeId'] for t in result.trace]
+        self.assertIn('3', executed_nodes)
+        self.assertIn('4', executed_nodes)
+        self.assertIn('5', executed_nodes)
+
+    def test_join_node_merges_results(self):
+        """Test that join node properly merges parallel branch results."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'test'}},
+            {'id': '2', 'type': 'parallel', 'data': {}},
+            {'id': '3', 'type': 'input', 'data': {'value': 'A'}},
+            {'id': '4', 'type': 'input', 'data': {'value': 'B'}},
+            {'id': '5', 'type': 'join', 'data': {'merge_strategy': 'concat'}},
+            {'id': '6', 'type': 'output', 'data': {}}
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2'},
+            {'source': '2', 'target': '4', 'id': 'e3'},
+            {'source': '3', 'target': '5', 'id': 'e4'},
+            {'source': '4', 'target': '5', 'id': 'e5'},
+            {'source': '5', 'target': '6', 'id': 'e6'}
+        ]
+
+        result = self.executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        # Join node should have executed and merged results
+        executed_nodes = [t['nodeId'] for t in result.trace]
+        self.assertIn('5', executed_nodes)
+        self.assertIn('6', executed_nodes)
+
+    def test_parallel_execution_with_three_branches(self):
+        """Test parallel execution with three branches."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'base'}},
+            {'id': '2', 'type': 'parallel', 'data': {}},
+            {'id': '3', 'type': 'input', 'data': {'value': '1'}},
+            {'id': '4', 'type': 'input', 'data': {'value': '2'}},
+            {'id': '5', 'type': 'input', 'data': {'value': '3'}},
+            {'id': '6', 'type': 'join', 'data': {'merge_strategy': 'list'}},
+            {'id': '7', 'type': 'output', 'data': {}}
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2'},
+            {'source': '2', 'target': '4', 'id': 'e3'},
+            {'source': '2', 'target': '5', 'id': 'e4'},
+            {'source': '3', 'target': '6', 'id': 'e5'},
+            {'source': '4', 'target': '6', 'id': 'e6'},
+            {'source': '5', 'target': '6', 'id': 'e7'},
+            {'source': '6', 'target': '7', 'id': 'e8'}
+        ]
+
+        result = self.executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        # Should execute all three parallel branches
+        executed_nodes = [t['nodeId'] for t in result.trace]
+        self.assertIn('3', executed_nodes)
+        self.assertIn('4', executed_nodes)
+        self.assertIn('5', executed_nodes)
+
+    def test_parallel_without_join_stops_after_branches(self):
+        """Test that parallel without join node stops after branches complete."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'test'}},
+            {'id': '2', 'type': 'parallel', 'data': {}},
+            {'id': '3', 'type': 'output', 'data': {}},
+            {'id': '4', 'type': 'output', 'data': {}}
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2'},
+            {'source': '2', 'target': '4', 'id': 'e3'}
+        ]
+
+        result = self.executor.execute(nodes=nodes, edges=edges)
+
+        # Should complete successfully even without join
+        self.assertEqual(result.status, 'ok')
+
+
+class ExecutorHooksTestCase(TestCase):
+    """Test suite for executor hook methods."""
+
+    def test_hook_methods_are_called(self):
+        """Test that all hook methods are called during execution."""
+        hooks_called = {
+            'execution_start': False,
+            'node_start': False,
+            'node_complete': False,
+            'execution_complete': False
+        }
+
+        class TestExecutor(WorkflowExecutor):
+            def _on_execution_start(self, nodes, edges, start_node_id):
+                hooks_called['execution_start'] = True
+
+            def _on_node_start(self, node, steps):
+                hooks_called['node_start'] = True
+
+            def _on_node_complete(self, node, result, completed_nodes, trace, steps):
+                hooks_called['node_complete'] = True
+
+            def _on_execution_complete(self, final_value, trace, completed_nodes, steps):
+                hooks_called['execution_complete'] = True
+
+        executor = TestExecutor()
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'test'}},
+            {'id': '2', 'type': 'output', 'data': {}}
+        ]
+        edges = [{'source': '1', 'target': '2', 'id': 'e1'}]
+
+        result = executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        self.assertTrue(hooks_called['execution_start'])
+        self.assertTrue(hooks_called['node_start'])
+        self.assertTrue(hooks_called['node_complete'])
+        self.assertTrue(hooks_called['execution_complete'])
+
+    def test_error_hook_is_called_on_failure(self):
+        """Test that error hook is called when execution fails."""
+        error_hook_called = {'called': False, 'error': None}
+
+        class TestExecutor(WorkflowExecutor):
+            def _on_execution_error(self, error, trace, completed_nodes):
+                error_hook_called['called'] = True
+                error_hook_called['error'] = error
+
+        executor = TestExecutor()
+        nodes = [
+            {'id': '1', 'type': 'invalid_type', 'data': {}},
+            {'id': '2', 'type': 'output', 'data': {}}
+        ]
+        edges = [{'source': '1', 'target': '2', 'id': 'e1'}]
+
+        result = executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'error')
+        self.assertTrue(error_hook_called['called'])
+        self.assertIsNotNone(error_hook_called['error'])
+
+    @patch('api.orchestration.polling_executor.cache')
+    def test_polling_executor_uses_hooks(self, mock_cache):
+        """Test that PollingExecutor properly uses hook methods."""
+        # Mock cache.get to return a dict (matching the default in _update_cache)
+        mock_cache.get.return_value = {
+            'status': 'running',
+            'currentNodeId': None,
+            'completedNodes': [],
+            'errorNodes': [],
+            'trace': [],
+            'steps': 0,
+            'final': None,
+            'error': None,
+            'timestamp': 0
+        }
+        mock_cache.set.return_value = True
+
+        executor = PollingExecutor(execution_id='test-123')
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'test'}},
+            {'id': '2', 'type': 'output', 'data': {}}
+        ]
+        edges = [{'source': '1', 'target': '2', 'id': 'e1'}]
+
+        result = executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        # PollingExecutor should have called cache.set multiple times
+        self.assertTrue(mock_cache.set.called)
+
+
+class ConditionNodeIntegrationTestCase(TestCase):
+    """Integration tests for condition node in workflows."""
+
+    def setUp(self):
+        self.executor = WorkflowExecutor()
+
+    def test_condition_routes_based_on_input_length(self):
+        """Test condition node routing based on input length."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'short'}},
+            {'id': '2', 'type': 'condition', 'data': {'expression': 'len(input) > 10'}},
+            {'id': '3', 'type': 'output', 'data': {}},  # yes path
+            {'id': '4', 'type': 'output', 'data': {}}   # no path
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2', 'sourceHandle': 'yes'},
+            {'source': '2', 'target': '4', 'id': 'e3', 'sourceHandle': 'no'}
+        ]
+
+        result = self.executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        # Should route to 'no' path (node 4) because 'short' has length 5
+        self.assertEqual(result.trace[2]['nodeId'], '4')
+
+    def test_condition_with_state_variables(self):
+        """Test condition node using state variables."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'test'}},
+            {'id': '2', 'type': 'memory', 'data': {'key': 'priority'}},
+            {'id': '3', 'type': 'condition', 'data': {'expression': "state['priority'] > 5"}},
+            {'id': '4', 'type': 'output', 'data': {}},  # yes
+            {'id': '5', 'type': 'output', 'data': {}}   # no
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2'},
+            {'source': '3', 'target': '4', 'id': 'e3', 'sourceHandle': 'yes'},
+            {'source': '3', 'target': '5', 'id': 'e4', 'sourceHandle': 'no'}
+        ]
+
+        # Memory will store 'test' as priority value
+        result = self.executor.execute(nodes=nodes, edges=edges,
+                                       context={'input': 10})  # priority = 10
+
+        self.assertEqual(result.status, 'ok')
+
+    def test_condition_with_complex_logic(self):
+        """Test condition node with complex boolean logic."""
+        nodes = [
+            {'id': '1', 'type': 'input', 'data': {'value': 'urgent message'}},
+            {'id': '2', 'type': 'condition', 'data': {
+                'expression': "input contains 'urgent' or input contains 'critical'"
+            }},
+            {'id': '3', 'type': 'output', 'data': {}},  # yes
+            {'id': '4', 'type': 'output', 'data': {}}   # no
+        ]
+        edges = [
+            {'source': '1', 'target': '2', 'id': 'e1'},
+            {'source': '2', 'target': '3', 'id': 'e2', 'sourceHandle': 'yes'},
+            {'source': '2', 'target': '4', 'id': 'e3', 'sourceHandle': 'no'}
+        ]
+
+        result = self.executor.execute(nodes=nodes, edges=edges)
+
+        self.assertEqual(result.status, 'ok')
+        # Should route to 'yes' path because input contains 'urgent'
+        # Check that node 3 (yes path) was executed
+        executed_nodes = [t['nodeId'] for t in result.trace]
+        self.assertIn('3', executed_nodes)
+        self.assertNotIn('4', executed_nodes)

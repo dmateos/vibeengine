@@ -382,6 +382,7 @@
 
 /* Custom Node Styles */
 .custom-node {
+  position: relative;
   background: var(--card-bg);
   border-radius: 12px;
   padding: 1.25rem;
@@ -393,7 +394,6 @@
   gap: 0.75rem;
   transition: all 0.2s ease;
   border: 2px solid transparent;
-  position: relative;
 }
 
 .custom-node:hover {
@@ -820,6 +820,27 @@
   border-color: #ef4444;
   background: #fee2e2;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Error badge in top-right corner */
+.react-flow__node.node-error .custom-node::after {
+  content: '!';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  z-index: 10;
 }
 
 /* Responsive */

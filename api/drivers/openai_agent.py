@@ -291,4 +291,24 @@ class OpenAIAgentDriver(BaseAgentDriver):
                     pass
             return resp
         except Exception as exc:
-            return self._fallback_response(input_text, label, knowledge, tools, f"OpenAI error: {exc}")
+            # Check if node configured to continue on error
+            continue_on_error = data.get('continue_on_error', False)
+            error_msg = f"OpenAI API failed: {str(exc)}"
+
+            if continue_on_error:
+                # Continue workflow but track the error
+                return DriverResponse({
+                    "status": "ok",
+                    "output": input_text,
+                    "error": error_msg,
+                    "error_type": "api_error",
+                    "had_error": True,
+                })
+            else:
+                # Stop workflow on error
+                return DriverResponse({
+                    "status": "error",
+                    "error": error_msg,
+                    "output": input_text,
+                    "error_type": "api_error",
+                })

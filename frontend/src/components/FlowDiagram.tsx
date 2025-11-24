@@ -25,6 +25,7 @@ import ClaudeAgentNode from './nodes/ClaudeAgentNode'
 import OllamaAgentNode from './nodes/OllamaAgentNode'
 import ToolNode from './nodes/ToolNode'
 import RouterNode from './nodes/RouterNode'
+import ConditionNode from './nodes/ConditionNode'
 import MemoryNode from './nodes/MemoryNode'
 import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
@@ -61,6 +62,7 @@ const nodeTypes = {
   ollama_agent: OllamaAgentNode,
   tool: ToolNode,
   router: RouterNode,
+  condition: ConditionNode,
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
@@ -727,6 +729,12 @@ function FlowDiagram() {
             </pre>
           ) : (
             <div>
+              {workflowResult.status === 'error' && workflowResult.error && (
+                <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderLeft: '3px solid #ef4444', borderRadius: 4 }}>
+                  <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>Workflow Error</div>
+                  <div style={{ color: '#dc2626', fontSize: '0.9em' }}>{workflowResult.error}</div>
+                </div>
+              )}
               <div style={{ marginBottom: 8, color: 'var(--text-secondary)' }}>
                 Final: <strong style={{ color: 'var(--text-primary)' }}>{String(workflowResult.final ?? '')}</strong>
               </div>
@@ -780,10 +788,13 @@ function FlowDiagram() {
                           </div>
                         )}
 
-                        {res.status === 'error' && res.error && (
+                        {(res.status === 'error' || res.had_error) && res.error && (
                           <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
                             <span style={{ color: '#ef4444' }}>Error:</span>{' '}
                             <span style={{ color: '#ef4444' }}>{res.error}</span>
+                            {res.had_error && res.status === 'ok' && (
+                              <span style={{ marginLeft: 8, fontSize: '0.85em', opacity: 0.7 }}>(continued)</span>
+                            )}
                           </div>
                         )}
 

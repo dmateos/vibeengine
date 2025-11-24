@@ -35,7 +35,7 @@ class WorkflowExecutor:
 
     Routing rules:
     - Starts at first node of type 'input' or a node with no incoming edges.
-    - For 'router' nodes, selects the outgoing edge whose sourceHandle matches result.route ('yes'|'no'),
+    - For 'router' and 'condition' nodes, selects the outgoing edge whose sourceHandle matches result.route,
       otherwise falls back to the first outgoing edge.
     - For other nodes, follows the first outgoing edge.
     - Propagates context: if a node returns 'output', it becomes next 'input'; returns 'state' merge into context.state.
@@ -371,8 +371,8 @@ class WorkflowExecutor:
         if not outs:
             return None, None
 
-        # Router node: follow sourceHandle matching route
-        if ntype == 'router':
+        # Router/Condition nodes: follow sourceHandle matching route
+        if ntype in ('router', 'condition'):
             return self._select_router_edge(res, outs, node_by_id)
 
         # Other nodes: use preference-based selection

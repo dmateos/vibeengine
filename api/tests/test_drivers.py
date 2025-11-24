@@ -7,6 +7,9 @@ from api.drivers import (
     RouterDriver,
     MemoryDriver,
     ToolDriver,
+    ConditionDriver,
+    ParallelDriver,
+    JoinDriver,
     DRIVERS
 )
 from api.memory_store import store
@@ -418,3 +421,335 @@ class ToolDriverTestCase(TestCase):
         # Should fall back to echo operation instead of erroring
         self.assertEqual(result['status'], 'ok')
         self.assertEqual(result['output'], {'echo': {}})
+
+
+class ConditionDriverTestCase(TestCase):
+    """Test suite for ConditionDriver."""
+
+    def setUp(self):
+        self.driver = ConditionDriver()
+
+    def test_driver_type(self):
+        """Test driver type is correctly set."""
+        self.assertEqual(self.driver.type, 'condition')
+
+    def test_simple_greater_than(self):
+        """Test simple > comparison."""
+        node = {'id': '1', 'data': {'expression': 'len(input) > 5'}}
+
+        # True case
+        context = {'input': 'long string'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['route'], 'yes')
+
+        # False case
+        context = {'input': 'hi'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_comparison_operators(self):
+        """Test all comparison operators."""
+        test_cases = [
+            ('input > 5', {'input': 10}, 'yes'),
+            ('input > 5', {'input': 3}, 'no'),
+            ('input < 5', {'input': 3}, 'yes'),
+            ('input < 5', {'input': 10}, 'no'),
+            ('input >= 5', {'input': 5}, 'yes'),
+            ('input <= 5', {'input': 5}, 'yes'),
+            ('input == 5', {'input': 5}, 'yes'),
+            ('input == 5', {'input': 10}, 'no'),
+            ('input != 5', {'input': 10}, 'yes'),
+            ('input != 5', {'input': 5}, 'no'),
+        ]
+
+        for expr, context, expected_route in test_cases:
+            node = {'id': '1', 'data': {'expression': expr}}
+            result = self.driver.execute(node, context)
+            self.assertEqual(result['route'], expected_route,
+                           f"Expression '{expr}' with context {context} should route to {expected_route}")
+
+    def test_string_contains_operation(self):
+        """Test 'contains' string operation."""
+        node = {'id': '1', 'data': {'expression': "input contains 'urgent'"}}
+
+        # True case
+        context = {'input': 'This is urgent!'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        # False case
+        context = {'input': 'This is normal'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_string_startswith_operation(self):
+        """Test 'startswith' string operation."""
+        node = {'id': '1', 'data': {'expression': "input startswith 'ERROR'"}}
+
+        context = {'input': 'ERROR: Something failed'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        context = {'input': 'INFO: All good'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_string_endswith_operation(self):
+        """Test 'endswith' string operation."""
+        node = {'id': '1', 'data': {'expression': "input endswith '.txt'"}}
+
+        context = {'input': 'file.txt'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        context = {'input': 'file.pdf'}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_boolean_and_operator(self):
+        """Test 'and' boolean operator."""
+        node = {'id': '1', 'data': {'expression': "input > 5 and input < 10"}}
+
+        context = {'input': 7}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        context = {'input': 15}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_boolean_or_operator(self):
+        """Test 'or' boolean operator."""
+        node = {'id': '1', 'data': {'expression': "input < 5 or input > 10"}}
+
+        context = {'input': 3}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        context = {'input': 7}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_state_access(self):
+        """Test accessing state variables."""
+        node = {'id': '1', 'data': {'expression': "state['count'] >= 3"}}
+
+        context = {'input': 'test', 'state': {'count': 5}}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        context = {'input': 'test', 'state': {'count': 1}}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_params_access(self):
+        """Test accessing params variables."""
+        node = {'id': '1', 'data': {'expression': "params['tier'] == 'premium'"}}
+
+        context = {'input': 'test', 'params': {'tier': 'premium'}}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        context = {'input': 'test', 'params': {'tier': 'basic'}}
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+    def test_empty_expression_defaults_to_no(self):
+        """Test that empty expression defaults to 'no' route."""
+        node = {'id': '1', 'data': {}}
+        context = {'input': 'test'}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['route'], 'no')
+
+    def test_invalid_expression_returns_no_with_error(self):
+        """Test that invalid expression returns 'no' and includes error."""
+        node = {'id': '1', 'data': {'expression': 'invalid syntax )('}}
+        context = {'input': 'test'}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['route'], 'no')
+        self.assertIn('error', result)
+
+    def test_safe_evaluation_blocks_builtins(self):
+        """Test that dangerous builtins are not accessible."""
+        dangerous_expressions = [
+            '__import__("os").system("ls")',
+            'eval("1+1")',
+            'exec("print(1)")',
+        ]
+
+        for expr in dangerous_expressions:
+            node = {'id': '1', 'data': {'expression': expr}}
+            context = {'input': 'test'}
+            result = self.driver.execute(node, context)
+
+            # Should fail safely and route to 'no'
+            self.assertEqual(result['route'], 'no')
+            self.assertIn('error', result)
+
+    def test_complex_expression(self):
+        """Test complex multi-condition expression."""
+        node = {'id': '1', 'data': {
+            'expression': "(input contains 'urgent' or input contains 'critical') and state['priority'] > 5"
+        }}
+
+        # True case
+        context = {
+            'input': 'This is urgent!',
+            'state': {'priority': 10}
+        }
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'yes')
+
+        # False case - matches text but not priority
+        context = {
+            'input': 'This is urgent!',
+            'state': {'priority': 3}
+        }
+        result = self.driver.execute(node, context)
+        self.assertEqual(result['route'], 'no')
+
+
+class ParallelDriverTestCase(TestCase):
+    """Test suite for ParallelDriver."""
+
+    def setUp(self):
+        self.driver = ParallelDriver()
+
+    def test_driver_type(self):
+        """Test driver type is correctly set."""
+        self.assertEqual(self.driver.type, 'parallel')
+
+    def test_execute_returns_parallel_marker(self):
+        """Test that parallel driver returns parallel marker."""
+        node = {'id': '1', 'data': {}}
+        context = {'input': 'test input'}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['status'], 'ok')
+        self.assertTrue(result['parallel'])
+        self.assertEqual(result['output'], 'test input')
+
+    def test_passes_through_input(self):
+        """Test that parallel driver passes through input."""
+        node = {'id': '1', 'data': {}}
+        context = {'input': 'complex data structure', 'state': {'key': 'value'}}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], 'complex data structure')
+
+
+class JoinDriverTestCase(TestCase):
+    """Test suite for JoinDriver."""
+
+    def setUp(self):
+        self.driver = JoinDriver()
+
+    def test_driver_type(self):
+        """Test driver type is correctly set."""
+        self.assertEqual(self.driver.type, 'join')
+
+    def test_merge_strategy_list_default(self):
+        """Test default 'list' merge strategy."""
+        node = {'id': '1', 'data': {}}
+        context = {'parallel_results': ['result1', 'result2', 'result3']}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['output'], ['result1', 'result2', 'result3'])
+
+    def test_merge_strategy_list_flattens_nested_lists(self):
+        """Test that list strategy flattens nested lists."""
+        node = {'id': '1', 'data': {'merge_strategy': 'list'}}
+        context = {'parallel_results': [['a', 'b'], 'c', ['d']]}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], ['a', 'b', 'c', 'd'])
+
+    def test_merge_strategy_concat(self):
+        """Test 'concat' merge strategy."""
+        node = {'id': '1', 'data': {'merge_strategy': 'concat'}}
+        context = {'parallel_results': ['Hello', ' ', 'World']}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], 'Hello World')
+
+    def test_merge_strategy_first(self):
+        """Test 'first' merge strategy."""
+        node = {'id': '1', 'data': {'merge_strategy': 'first'}}
+        context = {'parallel_results': ['first', 'second', 'third']}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], 'first')
+
+    def test_merge_strategy_last(self):
+        """Test 'last' merge strategy."""
+        node = {'id': '1', 'data': {'merge_strategy': 'last'}}
+        context = {'parallel_results': ['first', 'second', 'third']}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], 'third')
+
+    def test_merge_strategy_merge_dicts(self):
+        """Test 'merge' strategy with dictionaries."""
+        node = {'id': '1', 'data': {'merge_strategy': 'merge'}}
+        context = {'parallel_results': [
+            {'a': 1, 'b': 2},
+            {'c': 3},
+            {'b': 5, 'd': 4}  # 'b' will be overwritten
+        ]}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], {'a': 1, 'b': 5, 'c': 3, 'd': 4})
+
+    def test_merge_strategy_join_with_separator(self):
+        """Test 'join' strategy with custom separator."""
+        node = {'id': '1', 'data': {'merge_strategy': 'join', 'separator': ', '}}
+        context = {'parallel_results': ['apple', 'banana', 'cherry']}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], 'apple, banana, cherry')
+
+    def test_empty_parallel_results(self):
+        """Test join with empty parallel results."""
+        node = {'id': '1', 'data': {}}
+        context = {'parallel_results': []}
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['status'], 'ok')
+        self.assertIsNone(result['output'])
+
+    def test_custom_sources(self):
+        """Test join with custom sources instead of parallel_results."""
+        node = {'id': '1', 'data': {
+            'sources': ['state.var1', 'state.var2', 'input'],
+            'merge_strategy': 'join',
+            'separator': ' - '
+        }}
+        context = {
+            'input': 'hello',
+            'state': {'var1': 'foo', 'var2': 'bar'}
+        }
+        result = self.driver.execute(node, context)
+
+        self.assertEqual(result['output'], 'foo - bar - hello')
+
+    def test_sources_with_missing_values(self):
+        """Test join ignores missing source values."""
+        node = {'id': '1', 'data': {
+            'sources': ['state.exists', 'state.missing', 'input']
+        }}
+        context = {
+            'input': 'hello',
+            'state': {'exists': 'value'}
+        }
+        result = self.driver.execute(node, context)
+
+        # Should only include values that exist
+        self.assertEqual(len(result['output']), 2)
+        self.assertIn('value', result['output'])
+        self.assertIn('hello', result['output'])

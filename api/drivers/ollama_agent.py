@@ -64,6 +64,25 @@ class OllamaAgentDriver(BaseAgentDriver):
                 "status": "ok",
             })
         except Exception as exc:
-            # Fallback: minimal pass-through to respect non-conversational prompts
-            return self._fallback_response(input_text, label, knowledge, [], f"Ollama error: {exc}")
+            # Check if node configured to continue on error
+            continue_on_error = data.get('continue_on_error', False)
+            error_msg = f"Ollama connection failed: {str(exc)}"
+
+            if continue_on_error:
+                # Continue workflow but track the error
+                return DriverResponse({
+                    "status": "ok",
+                    "output": input_text,  # Pass through input
+                    "error": error_msg,
+                    "error_type": "connection_error",
+                    "had_error": True,
+                })
+            else:
+                # Stop workflow on error
+                return DriverResponse({
+                    "status": "error",
+                    "error": error_msg,
+                    "output": input_text,
+                    "error_type": "connection_error",
+                })
 

@@ -5,6 +5,7 @@ from .claude_agent import ClaudeAgentDriver
 from .ollama_agent import OllamaAgentDriver
 from .tool import ToolDriver
 from .router import RouterDriver
+from .condition import ConditionDriver
 from .input import InputDriver
 from .output import OutputDriver
 from .memory import MemoryDriver
@@ -19,6 +20,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     OllamaAgentDriver.type: OllamaAgentDriver(),
     ToolDriver.type: ToolDriver(),
     RouterDriver.type: RouterDriver(),
+    ConditionDriver.type: ConditionDriver(),
     InputDriver.type: InputDriver(),
     OutputDriver.type: OutputDriver(),
     MemoryDriver.type: MemoryDriver(),
@@ -62,6 +64,7 @@ __all__ = [
     "OllamaAgentDriver",
     "ToolDriver",
     "RouterDriver",
+    "ConditionDriver",
     "InputDriver",
     "OutputDriver",
     "MemoryDriver",
