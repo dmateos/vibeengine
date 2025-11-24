@@ -30,11 +30,8 @@ class ParallelDriver(BaseDriver):
         3. Executing each branch independently
         4. Collecting results for the join node
         """
-        print(f"[DEBUG] ParallelDriver.execute called for node {node.get('id')}")
-        result = DriverResponse({
+        return DriverResponse({
             "status": "ok",
             "parallel": True,
             "output": context.get("input"),  # Pass input through to all branches
         })
-        print(f"[DEBUG] ParallelDriver returning: {result}")
-        return result

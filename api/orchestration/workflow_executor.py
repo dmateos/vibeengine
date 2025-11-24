@@ -134,10 +134,6 @@ class WorkflowExecutor:
             # Execute node
             res = execute_node_by_type(ntype, current, exec_context)
 
-            print(f"[DEBUG] Executed node {current.get('id')} (type: {ntype}), result keys: {list(res.keys())}")
-            if ntype == 'parallel':
-                print(f"[DEBUG] Parallel node result: {res}")
-
             if res.get('status') != 'ok':
                 error_msg = res.get('error', 'node execution failed')
                 self._on_execution_error(error_msg, trace, completed_nodes)
@@ -148,7 +144,6 @@ class WorkflowExecutor:
                 )
 
             # Check for parallel execution
-            print(f"[DEBUG] Checking for parallel execution: res.get('parallel') = {res.get('parallel')}")
             if res.get('parallel'):
                 # Execute all parallel branches
                 parallel_results, parallel_trace = self._execute_parallel_branches(
@@ -476,34 +471,22 @@ class WorkflowExecutor:
         parallel_id = str(parallel_node.get('id'))
         branch_edges = outgoing.get(parallel_id, [])
 
-        print(f"[DEBUG] Parallel node {parallel_id} has {len(branch_edges)} outgoing edges")
-
         # Filter out non-control-flow edges (memory/tool nodes)
         branch_edges = [
             e for e in branch_edges
             if node_by_id.get(str(e.get('target')), {}).get('type') not in ('memory', 'tool')
         ]
 
-        print(f"[DEBUG] After filtering, {len(branch_edges)} control-flow edges remain")
-        for i, edge in enumerate(branch_edges):
-            target_id = str(edge.get('target'))
-            target_node = node_by_id.get(target_id)
-            target_type = target_node.get('type') if target_node else 'unknown'
-            print(f"[DEBUG] Branch {i}: edge {edge.get('id')} -> node {target_id} (type: {target_type})")
-
         results = []
         trace = []
 
         # Execute each branch independently
-        for i, edge in enumerate(branch_edges):
+        for edge in branch_edges:
             branch_target_id = str(edge.get('target'))
             branch_node = node_by_id.get(branch_target_id)
 
             if not branch_node:
-                print(f"[DEBUG] Branch {i}: target node {branch_target_id} not found, skipping")
                 continue
-
-            print(f"[DEBUG] Executing branch {i} starting at node {branch_target_id}")
 
             # Clone context for this branch (each branch gets independent context)
             branch_context = {
@@ -518,11 +501,9 @@ class WorkflowExecutor:
                 branch_node, branch_context, outgoing, node_by_id, edges, remaining_steps
             )
 
-            print(f"[DEBUG] Branch {i} completed with result: {branch_result}")
             results.append(branch_result)
             trace.extend(branch_trace_entries)
 
-        print(f"[DEBUG] All {len(results)} branches completed")
         return results, trace
 
     def _execute_branch(self, start_node: Dict[str, Any], context: Dict[str, Any],

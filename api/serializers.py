@@ -5,7 +5,7 @@ from .models import Workflow, NodeType
 class NodeTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = NodeType
-        fields = ['id', 'name', 'display_name', 'icon', 'color', 'description']
+        fields = ['id', 'name', 'display_name', 'icon', 'color', 'description', 'category']
         read_only_fields = ['id']
 
 

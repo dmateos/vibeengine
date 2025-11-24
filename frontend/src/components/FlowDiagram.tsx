@@ -39,6 +39,7 @@ interface NodeTypeData {
   icon: string
   color: string
   description: string
+  category: string
 }
 
 interface Workflow {
@@ -529,15 +530,32 @@ function FlowDiagram() {
             </button>
             {showAddNodeMenu && (
               <div className="dropdown-menu">
-                {nodeTypeOptions.map((nodeType) => (
-                  <button
-                    key={nodeType.id}
-                    className={`dropdown-item ${nodeType.name}`}
-                    onClick={() => addNode(nodeType)}
-                  >
-                    <span className="node-type-icon">{nodeType.icon}</span>
-                    {nodeType.display_name}
-                  </button>
+                {Object.entries(
+                  nodeTypeOptions.reduce((acc, nodeType) => {
+                    const category = nodeType.category || 'Other'
+                    if (!acc[category]) acc[category] = []
+                    acc[category].push(nodeType)
+                    return acc
+                  }, {} as Record<string, NodeTypeData[]>)
+                ).map(([category, nodes]) => (
+                  <div key={category} className="dropdown-category">
+                    <div className="dropdown-category-item">
+                      {category}
+                      <span className="submenu-arrow">›</span>
+                    </div>
+                    <div className="dropdown-submenu">
+                      {nodes.map((nodeType) => (
+                        <button
+                          key={nodeType.id}
+                          className={`dropdown-item ${nodeType.name}`}
+                          onClick={() => addNode(nodeType)}
+                        >
+                          <span className="node-type-icon">{nodeType.icon}</span>
+                          {nodeType.display_name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
