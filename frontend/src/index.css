@@ -50,13 +50,15 @@ html, body {
   padding: 0;
   min-width: 320px;
   height: 100vh;
-  background-color: var(--bg-primary);
+  background: #050211;
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
 }
 
 #root {
   height: 100%;
+  overflow-x: hidden;
 }
 
 button {
