@@ -1,14 +1,5 @@
 from django.contrib import admin
-from .models import NodeType, Workflow, MemoryEntry
-
-
-@admin.register(NodeType)
-class NodeTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'display_name', 'icon', 'color', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('name', 'display_name', 'description')
-    readonly_fields = ('created_at',)
-    ordering = ('name',)
+from .models import Workflow, MemoryEntry
 
 
 @admin.register(Workflow)

@@ -85,27 +85,27 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Merge results from parallel branches',
         'category': 'Control Flow',
     },
-    'json_validator': {
-        'display_name': 'JSON Validator',
-        'icon': '✓',
-        'color': '#14b8a6',
-        'description': 'Validate JSON data against a schema',
-        'category': 'Control Flow',
-    },
-
-    # Data
     'tool': {
         'display_name': 'Tool',
         'icon': '🛠️',
         'color': '#10b981',
         'description': 'Invokes an external capability/tool',
-        'category': 'Data',
+        'category': 'Agents',
     },
     'memory': {
         'display_name': 'Memory',
         'icon': '🧠',
         'color': '#ef4444',
         'description': 'Read/write flow state',
+        'category': 'Agents',
+    },
+
+    # Data
+    'json_validator': {
+        'display_name': 'JSON Validator',
+        'icon': '✓',
+        'color': '#14b8a6',
+        'description': 'Validate JSON data against a schema',
         'category': 'Data',
     },
 }

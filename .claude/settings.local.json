@@ -13,7 +13,8 @@
       "Bash(python:*)",
       "Bash(timeout 5 npm run dev)",
       "Bash(mkdir:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(xargs basename:*)"
     ],
     "deny": [],
     "ask": []

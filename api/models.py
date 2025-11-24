@@ -24,22 +24,6 @@ class MemoryEntry(models.Model):
         return f"{self.namespace}:{self.key}"
 
 
-class NodeType(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-    display_name = models.CharField(max_length=100)
-    icon = models.CharField(max_length=10)
-    color = models.CharField(max_length=7)
-    description = models.TextField(blank=True, null=True)
-    category = models.CharField(max_length=50, default='Other')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['category', 'name']
-
-    def __str__(self):
-        return self.display_name
-
-
 class Workflow(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)

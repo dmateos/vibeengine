@@ -63,7 +63,7 @@ def revert_to_legacy_agent_nodes(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0004_add_openai_claude_agent_types'),
+        ('api', '0001_initial'),
     ]
 
     operations = [
