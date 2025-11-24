@@ -8,6 +8,8 @@ from .router import RouterDriver
 from .input import InputDriver
 from .output import OutputDriver
 from .memory import MemoryDriver
+from .parallel import ParallelDriver
+from .join import JoinDriver
 
 
 # Registry of all available drivers
@@ -20,6 +22,8 @@ DRIVERS: Dict[str, BaseDriver] = {
     InputDriver.type: InputDriver(),
     OutputDriver.type: OutputDriver(),
     MemoryDriver.type: MemoryDriver(),
+    ParallelDriver.type: ParallelDriver(),
+    JoinDriver.type: JoinDriver(),
 }
 
 
@@ -61,6 +65,8 @@ __all__ = [
     "InputDriver",
     "OutputDriver",
     "MemoryDriver",
+    "ParallelDriver",
+    "JoinDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]

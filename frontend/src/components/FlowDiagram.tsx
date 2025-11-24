@@ -26,6 +26,8 @@ import OllamaAgentNode from './nodes/OllamaAgentNode'
 import ToolNode from './nodes/ToolNode'
 import RouterNode from './nodes/RouterNode'
 import MemoryNode from './nodes/MemoryNode'
+import ParallelNode from './nodes/ParallelNode'
+import JoinNode from './nodes/JoinNode'
 import { usePolling } from '../hooks/usePolling'
 
 const API_BASE_URL = 'http://localhost:8000/api'
@@ -59,6 +61,8 @@ const nodeTypes = {
   tool: ToolNode,
   router: RouterNode,
   memory: MemoryNode,
+  parallel: ParallelNode,
+  join: JoinNode,
 }
 
 const initialNodes: Node[] = []

@@ -51,6 +51,31 @@ class WorkflowExecutor:
         """
         self.max_steps = max_steps
 
+    # Hook methods that can be overridden by subclasses
+    def _on_execution_start(self, nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]],
+                           start_node_id: Optional[str]) -> None:
+        """Called when execution starts. Override for custom behavior."""
+        pass
+
+    def _on_node_start(self, node: Dict[str, Any], steps: int) -> None:
+        """Called before a node executes. Override for custom behavior."""
+        pass
+
+    def _on_node_complete(self, node: Dict[str, Any], result: Dict[str, Any],
+                         completed_nodes: List[str], trace: List[Dict[str, Any]], steps: int) -> None:
+        """Called after a node completes successfully. Override for custom behavior."""
+        pass
+
+    def _on_execution_complete(self, final_value: Any, trace: List[Dict[str, Any]],
+                              completed_nodes: List[str], steps: int) -> None:
+        """Called when execution completes. Override for custom behavior."""
+        pass
+
+    def _on_execution_error(self, error: str, trace: List[Dict[str, Any]],
+                           completed_nodes: List[str]) -> None:
+        """Called when execution fails. Override for custom behavior."""
+        pass
+
     def execute(self, nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]],
                 context: Optional[Dict[str, Any]] = None,
                 start_node_id: Optional[str] = None) -> ExecutionResult:
@@ -82,16 +107,24 @@ class WorkflowExecutor:
         if start:
             self._initialize_context_from_input_node(start, context)
 
+        # Notify execution start
+        self._on_execution_start(nodes, edges, start_node_id)
+
         # Execute workflow
         max_steps = self.max_steps or (len(nodes) + len(edges) + 10)
         current = start
         steps = 0
         trace: List[Dict[str, Any]] = []
         final_value: Any = None
+        completed_nodes: List[str] = []
 
         while current and steps < max_steps:
             steps += 1
             ntype = current.get('type')
+            node_id = str(current.get('id'))
+
+            # Notify node start
+            self._on_node_start(current, steps)
 
             # Build agent-specific context (memory/tools)
             exec_context, used_memory, used_tools = self._build_agent_context(
@@ -101,37 +134,76 @@ class WorkflowExecutor:
             # Execute node
             res = execute_node_by_type(ntype, current, exec_context)
 
+            print(f"[DEBUG] Executed node {current.get('id')} (type: {ntype}), result keys: {list(res.keys())}")
+            if ntype == 'parallel':
+                print(f"[DEBUG] Parallel node result: {res}")
+
             if res.get('status') != 'ok':
+                error_msg = res.get('error', 'node execution failed')
+                self._on_execution_error(error_msg, trace, completed_nodes)
                 return ExecutionResult(
                     status='error',
-                    error=res.get('error', 'node execution failed'),
+                    error=error_msg,
                     trace=trace
                 )
 
-            # Propagate outputs into context
-            if 'state' in res:
-                context['state'] = res['state']
-            if 'output' in res:
-                context['input'] = res['output']
-                final_value = res['output']
-            if 'final' in res:
-                final_value = res['final']
+            # Check for parallel execution
+            print(f"[DEBUG] Checking for parallel execution: res.get('parallel') = {res.get('parallel')}")
+            if res.get('parallel'):
+                # Execute all parallel branches
+                parallel_results, parallel_trace = self._execute_parallel_branches(
+                    current, res, context, outgoing, node_by_id, edges, max_steps - steps
+                )
 
-            # Select next node
-            nxt, used_edge = self._select_next_node(
-                current, ntype, res, outgoing, node_by_id
-            )
+                # Add parallel execution to trace
+                trace.extend(parallel_trace)
+                steps += len(parallel_trace)
 
-            # Add trace entry
-            trace.append(self._build_trace_entry(
-                current, ntype, res, used_edge, nxt, used_memory, used_tools, exec_context
-            ))
+                # Store results for join node
+                context['parallel_results'] = parallel_results
+
+                # Find join node (first common target of all branches)
+                nxt, used_edge = self._find_join_node(current, outgoing, node_by_id)
+
+                # Add trace for parallel node itself
+                trace.append(self._build_trace_entry(
+                    current, ntype, res, None, nxt, used_memory, used_tools, exec_context
+                ))
+            else:
+                # Normal execution path
+                # Propagate outputs into context
+                if 'state' in res:
+                    context['state'] = res['state']
+                if 'output' in res:
+                    context['input'] = res['output']
+                    final_value = res['output']
+                if 'final' in res:
+                    final_value = res['final']
+
+                # Select next node
+                nxt, used_edge = self._select_next_node(
+                    current, ntype, res, outgoing, node_by_id
+                )
+
+                # Add trace entry
+                trace.append(self._build_trace_entry(
+                    current, ntype, res, used_edge, nxt, used_memory, used_tools, exec_context
+                ))
+
+            # Mark node as completed
+            completed_nodes.append(node_id)
+
+            # Notify node completion
+            self._on_node_complete(current, res, completed_nodes, trace, steps)
 
             # Stop at output node
             if ntype == 'output':
                 break
 
             current = nxt
+
+        # Notify execution completion
+        self._on_execution_complete(final_value, trace, completed_nodes, steps)
 
         return ExecutionResult(
             status='ok',
@@ -388,3 +460,172 @@ class WorkflowExecutor:
             'usedMemory': used_memory if ntype in ('openai_agent', 'claude_agent', 'ollama_agent') else None,
             'usedTools': used_tools if ntype in ('openai_agent', 'claude_agent', 'ollama_agent') else None,
         }
+
+    def _execute_parallel_branches(self, parallel_node: Dict[str, Any],
+                                   res: Dict[str, Any], context: Dict[str, Any],
+                                   outgoing: Dict[str, List[Dict[str, Any]]],
+                                   node_by_id: Dict[str, Dict[str, Any]],
+                                   edges: List[Dict[str, Any]],
+                                   remaining_steps: int) -> tuple:
+        """
+        Execute all parallel branches from a parallel node.
+
+        Returns:
+            Tuple of (results_list, trace_list)
+        """
+        parallel_id = str(parallel_node.get('id'))
+        branch_edges = outgoing.get(parallel_id, [])
+
+        print(f"[DEBUG] Parallel node {parallel_id} has {len(branch_edges)} outgoing edges")
+
+        # Filter out non-control-flow edges (memory/tool nodes)
+        branch_edges = [
+            e for e in branch_edges
+            if node_by_id.get(str(e.get('target')), {}).get('type') not in ('memory', 'tool')
+        ]
+
+        print(f"[DEBUG] After filtering, {len(branch_edges)} control-flow edges remain")
+        for i, edge in enumerate(branch_edges):
+            target_id = str(edge.get('target'))
+            target_node = node_by_id.get(target_id)
+            target_type = target_node.get('type') if target_node else 'unknown'
+            print(f"[DEBUG] Branch {i}: edge {edge.get('id')} -> node {target_id} (type: {target_type})")
+
+        results = []
+        trace = []
+
+        # Execute each branch independently
+        for i, edge in enumerate(branch_edges):
+            branch_target_id = str(edge.get('target'))
+            branch_node = node_by_id.get(branch_target_id)
+
+            if not branch_node:
+                print(f"[DEBUG] Branch {i}: target node {branch_target_id} not found, skipping")
+                continue
+
+            print(f"[DEBUG] Executing branch {i} starting at node {branch_target_id}")
+
+            # Clone context for this branch (each branch gets independent context)
+            branch_context = {
+                'input': context.get('input'),
+                'params': context.get('params', {}),
+                'condition': context.get('condition', False),
+                'state': dict(context.get('state', {})),  # Shallow copy of state
+            }
+
+            # Execute branch until we hit the join node or end
+            branch_result, branch_trace_entries = self._execute_branch(
+                branch_node, branch_context, outgoing, node_by_id, edges, remaining_steps
+            )
+
+            print(f"[DEBUG] Branch {i} completed with result: {branch_result}")
+            results.append(branch_result)
+            trace.extend(branch_trace_entries)
+
+        print(f"[DEBUG] All {len(results)} branches completed")
+        return results, trace
+
+    def _execute_branch(self, start_node: Dict[str, Any], context: Dict[str, Any],
+                       outgoing: Dict[str, List[Dict[str, Any]]],
+                       node_by_id: Dict[str, Dict[str, Any]],
+                       edges: List[Dict[str, Any]],
+                       max_steps: int) -> tuple:
+        """
+        Execute a single branch from parallel execution.
+
+        Returns:
+            Tuple of (final_output, trace_entries)
+        """
+        current = start_node
+        steps = 0
+        trace = []
+        final_output = None
+
+        while current and steps < max_steps:
+            steps += 1
+            ntype = current.get('type')
+
+            # Stop at join node - it will be executed after all branches complete
+            if ntype == 'join':
+                break
+
+            # Build context for this node
+            exec_context, used_memory, used_tools = self._build_agent_context(
+                current, ntype, context, edges, node_by_id
+            )
+
+            # Execute node
+            res = execute_node_by_type(ntype, current, exec_context)
+
+            if res.get('status') != 'ok':
+                # On error, store error as output and stop branch
+                final_output = {'error': res.get('error', 'node execution failed')}
+                trace.append(self._build_trace_entry(
+                    current, ntype, res, None, None, used_memory, used_tools, exec_context
+                ))
+                break
+
+            # Propagate outputs within branch context
+            if 'state' in res:
+                context['state'] = res['state']
+            if 'output' in res:
+                context['input'] = res['output']
+                final_output = res['output']
+            if 'final' in res:
+                final_output = res['final']
+
+            # Select next node in branch
+            nxt, used_edge = self._select_next_node(
+                current, ntype, res, outgoing, node_by_id
+            )
+
+            # Add trace entry
+            trace.append(self._build_trace_entry(
+                current, ntype, res, used_edge, nxt, used_memory, used_tools, exec_context
+            ))
+
+            # Stop if no next node or hit output node
+            if not nxt or ntype == 'output':
+                break
+
+            current = nxt
+
+        return final_output, trace
+
+    def _find_join_node(self, parallel_node: Dict[str, Any],
+                       outgoing: Dict[str, List[Dict[str, Any]]],
+                       node_by_id: Dict[str, Dict[str, Any]]) -> tuple:
+        """
+        Find the join node that all parallel branches converge to.
+
+        For simplicity, we look for the first node of type 'join' that any branch leads to.
+
+        Returns:
+            Tuple of (join_node, edge) or (None, None) if not found
+        """
+        parallel_id = str(parallel_node.get('id'))
+        branch_edges = outgoing.get(parallel_id, [])
+
+        # Get all branch targets
+        for edge in branch_edges:
+            target_id = str(edge.get('target'))
+            target = node_by_id.get(target_id)
+
+            if not target:
+                continue
+
+            # Check if target is a join node
+            if target.get('type') == 'join':
+                return target, edge
+
+            # Look one level deeper - check target's outgoing edges
+            target_edges = outgoing.get(target_id, [])
+            for next_edge in target_edges:
+                next_target_id = str(next_edge.get('target'))
+                next_target = node_by_id.get(next_target_id)
+
+                if next_target and next_target.get('type') == 'join':
+                    return next_target, None
+
+        # No join node found - execution will end after parallel branches
+        return None, None
