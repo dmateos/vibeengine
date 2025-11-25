@@ -649,9 +649,10 @@ function FlowDiagram() {
 
   return (
     <div className="flow-container">
-      <div className="flow-header">
-        <div className="flow-title">
-          <h2>Workflow Designer</h2>
+      {/* Primary Toolbar - Workflow Management */}
+      <div className="flow-header-primary">
+        <div className="workflow-info">
+          <h2>⚡ Workflow Designer</h2>
           <div className="workflow-name-container">
             <input
               type="text"
@@ -667,13 +668,37 @@ function FlowDiagram() {
             )}
           </div>
         </div>
-        <div className="flow-actions">
+        <div className="workflow-actions">
+          <button className="btn-outline" onClick={createNewWorkflow}>
+            📄 New
+          </button>
+          <button
+            className="btn-outline"
+            onClick={() => setShowWorkflowList(!showWorkflowList)}
+          >
+            📂 {showWorkflowList ? 'Close' : 'Load'}
+          </button>
+          <button
+            className="btn-primary"
+            onClick={saveWorkflow}
+            disabled={saving}
+          >
+            {saving ? '💾 Saving...' : '💾 Save'}
+          </button>
+        </div>
+      </div>
+
+      {/* Secondary Toolbar - Actions */}
+      <div className="flow-header-secondary">
+        {/* Node Operations */}
+        <div className="toolbar-group">
+          <span className="toolbar-label">Nodes</span>
           <div className="add-node-dropdown">
             <button
-              className="btn-secondary"
+              className="btn-tool"
               onClick={() => setShowAddNodeMenu(!showAddNodeMenu)}
             >
-              + Add Node
+              ➕ Add Node
             </button>
             {showAddNodeMenu && (
               <div className="dropdown-menu">
@@ -708,13 +733,46 @@ function FlowDiagram() {
             )}
           </div>
           <button
-            className="btn-secondary"
-            onClick={() => setShowWorkflowList(!showWorkflowList)}
+            className="btn-tool btn-danger"
+            onClick={deleteSelectedEdges}
+            title="Delete selected edges"
           >
-            {showWorkflowList ? 'Close' : 'Load Workflow'}
+            🗑️ Delete Edges
+          </button>
+        </div>
+
+        <div className="toolbar-separator"></div>
+
+        {/* Execution Controls */}
+        <div className="toolbar-group">
+          <span className="toolbar-label">Execute</span>
+          <input
+            type="text"
+            value={workflowInput}
+            onChange={(e) => setWorkflowInput(e.target.value)}
+            placeholder="Input data..."
+            className="toolbar-input"
+          />
+          <button className="btn-tool btn-run" onClick={() => executeWorkflow()} disabled={running}>
+            {running ? '⏳ Running...' : '▶️ Run'}
           </button>
           <button
-            className="btn-secondary"
+            className="btn-tool"
+            onClick={() => executeWorkflow({ fromSelected: true })}
+            disabled={running || !selectedNode}
+            title={selectedNode ? `Run from ${selectedNode.data?.label || selectedNode.type}` : 'Select a node to enable'}
+          >
+            ⏩ Run From Node
+          </button>
+        </div>
+
+        <div className="toolbar-separator"></div>
+
+        {/* Utilities */}
+        <div className="toolbar-group">
+          <span className="toolbar-label">Tools</span>
+          <button
+            className="btn-tool"
             onClick={() => setShowTriggersModal(true)}
             disabled={!currentWorkflow}
             title={currentWorkflow ? 'Configure API triggers' : 'Save workflow first'}
@@ -722,7 +780,7 @@ function FlowDiagram() {
             ⚡ Triggers
           </button>
           <button
-            className="btn-secondary"
+            className="btn-tool"
             onClick={() => {
               setShowHistoryModal(true)
               loadExecutionHistory()
@@ -731,43 +789,6 @@ function FlowDiagram() {
             title={currentWorkflow ? 'View execution history' : 'Save workflow first'}
           >
             📊 History
-          </button>
-          <button className="btn-secondary" onClick={createNewWorkflow}>
-            New Workflow
-          </button>
-          <button
-            className="btn-primary"
-            onClick={saveWorkflow}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : 'Save Workflow'}
-          </button>
-          <input
-            type="text"
-            value={workflowInput}
-            onChange={(e) => setWorkflowInput(e.target.value)}
-            placeholder="Workflow input..."
-            className="workflow-name-input"
-            style={{ minWidth: 160 }}
-          />
-          <button className="btn-secondary" onClick={() => executeWorkflow()} disabled={running}>
-            {running ? 'Running...' : 'Run'}
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => executeWorkflow({ fromSelected: true })}
-            disabled={running || !selectedNode}
-            title={selectedNode ? `Run from ${selectedNode.data?.label || selectedNode.type}` : 'Select a node to enable'}
-          >
-            {running ? 'Running...' : 'Run From Selected'}
-          </button>
-          {/* Alignment tools removed */}
-          <button
-            className="btn-delete"
-            onClick={deleteSelectedEdges}
-            title="Delete selected edges"
-          >
-            Delete Edges
           </button>
         </div>
       </div>
