@@ -551,7 +551,6 @@ function FlowDiagram() {
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node)
     setExecutionResult(null)
-    setSidebarTab('node')
   }, [])
 
   const onNodeMouseEnter = useCallback((_event: React.MouseEvent, node: Node) => {
@@ -565,7 +564,6 @@ function FlowDiagram() {
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: Node) => {
     // Double-click to show detailed history panel
     setNodeHistoryPanelNode(node.id)
-    setSidebarTab('history')
   }, [])
 
   // Handle node deletion
@@ -833,10 +831,8 @@ function FlowDiagram() {
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flow-main">
-        <div className="flow-canvas">
-          <ReactFlow
+      <div className="flow-canvas">
+        <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -897,757 +893,670 @@ function FlowDiagram() {
         </ReactFlow>
 
       </div>
+
       {/* Right Sidebar */}
       <div className="right-sidebar">
-        {/* Sidebar Tabs */}
-        <div className="sidebar-tabs">
-          <button
-            className={`sidebar-tab ${sidebarTab === 'output' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('output')}
-          >
-            📊 Output
-          </button>
-          <button
-            className={`sidebar-tab ${sidebarTab === 'node' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('node')}
-            disabled={!selectedNode}
-          >
-            ⚙️ Node
-          </button>
-          <button
-            className={`sidebar-tab ${sidebarTab === 'history' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('history')}
-            disabled={!hoveredNode && !selectedNode}
-          >
-            📜 History
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <h3>Run Output</h3>
+          <div>
+            <button
+              className="btn-secondary"
+              onClick={() => setViewMode(viewMode === 'log' ? 'json' : 'log')}
+              style={{ padding: '0.35rem 0.6rem' }}
+            >
+              {viewMode === 'log' ? 'View JSON' : 'View Log'}
+            </button>
+          </div>
         </div>
-
-        {/* Sidebar Content */}
-        <div className="sidebar-content">
-          {/* Run Output Tab */}
-          {sidebarTab === 'output' && (
-            <div className="sidebar-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ margin: 0 }}>Run Output</h3>
-                <button
-                  className="btn-tool"
-                  onClick={() => setViewMode(viewMode === 'log' ? 'json' : 'log')}
-                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                >
-                  {viewMode === 'log' ? 'JSON' : 'Log'}
-                </button>
+        {workflowResult ? (
+          viewMode === 'json' ? (
+            <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+              {JSON.stringify(workflowResult, null, 2)}
+            </pre>
+          ) : (
+            <div>
+              {workflowResult.status === 'error' && workflowResult.error && (
+                <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderLeft: '3px solid #ef4444', borderRadius: 4 }}>
+                  <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>Workflow Error</div>
+                  <div style={{ color: '#dc2626', fontSize: '0.9em' }}>{workflowResult.error}</div>
+                </div>
+              )}
+              <div style={{ marginBottom: 8, color: 'var(--text-secondary)' }}>
+                Final: <strong style={{ color: 'var(--text-primary)' }}>{String(workflowResult.final ?? '')}</strong>
               </div>
-              {workflowResult ? (
-                viewMode === 'json' ? (
-                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: '0.85rem' }}>
-                    {JSON.stringify(workflowResult, null, 2)}
-                  </pre>
-                ) : (
-                  <div>
-                    {workflowResult.status === 'error' && workflowResult.error && (
-                      <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderLeft: '3px solid #ef4444', borderRadius: 4 }}>
-                        <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>Workflow Error</div>
-                        <div style={{ color: '#dc2626', fontSize: '0.85em' }}>{workflowResult.error}</div>
-                      </div>
-                    )}
-                    <div style={{ marginBottom: 8, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      Final: <strong style={{ color: 'var(--text-primary)' }}>{String(workflowResult.final ?? '')}</strong>
-                    </div>
-                    {Array.isArray(workflowResult.trace) && workflowResult.trace.length > 0 ? (
-                      <ol style={{ paddingLeft: 18, margin: 0, fontSize: '0.9rem' }}>
-                        {workflowResult.trace.map((step: any, idx: number) => {
-                          const res = step?.result || {}
-                          const node = nodes.find(n => n.id === step.nodeId)
-                          const nodeLabel = node?.data?.label || step.nodeId
-                          const inputValue = step?.context?.input
+              {Array.isArray(workflowResult.trace) && workflowResult.trace.length > 0 ? (
+                <ol style={{ paddingLeft: 18, margin: 0 }}>
+                  {workflowResult.trace.map((step: any, idx: number) => {
+                    const res = step?.result || {}
+                    const node = nodes.find(n => n.id === step.nodeId)
+                    const nodeLabel = node?.data?.label || step.nodeId
+                    const inputValue = step?.context?.input
 
-                          return (
-                            <li key={`${step.nodeId}-${idx}`} style={{ marginBottom: 10 }}>
-                              <div>
-                                <span style={{ color: 'var(--text-secondary)' }}>{idx + 1}.</span>{' '}
-                                <strong style={{ color: 'var(--text-primary)' }}>{nodeLabel}</strong>{' '}
-                                <span style={{ opacity: 0.5, fontSize: '0.85em' }}>({step.type})</span>
+                    return (
+                      <li key={`${step.nodeId}-${idx}`} style={{ marginBottom: 10 }}>
+                        <div>
+                          <span style={{ color: 'var(--text-secondary)' }}>{idx + 1}.</span>{' '}
+                          <strong style={{ color: 'var(--text-primary)' }}>{nodeLabel}</strong>{' '}
+                          <span style={{ opacity: 0.5, fontSize: '0.85em' }}>({step.type})</span>
+                        </div>
+
+                        {inputValue !== undefined && inputValue !== null && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Input:</span>{' '}
+                            <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+                              {typeof inputValue === 'object' ? JSON.stringify(inputValue) : String(inputValue)}
+                            </code>
+                          </div>
+                        )}
+
+                        {res.route !== undefined && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Route:</span>{' '}
+                            <strong style={{ color: res.route === 'yes' ? '#22c55e' : '#ef4444' }}>{String(res.route)}</strong>
+                          </div>
+                        )}
+
+                        {res.output !== undefined && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Output:</span>{' '}
+                            <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+                              {typeof res.output === 'object' ? JSON.stringify(res.output) : String(res.output)}
+                            </code>
+                          </div>
+                        )}
+
+                        {res.final !== undefined && res.output === undefined && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Final:</span>{' '}
+                            <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+                              {typeof res.final === 'object' ? JSON.stringify(res.final) : String(res.final)}
+                            </code>
+                          </div>
+                        )}
+
+                        {(res.status === 'error' || res.had_error) && res.error && (
+                          <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.9em' }}>
+                            <span style={{ color: '#ef4444' }}>Error:</span>{' '}
+                            <span style={{ color: '#ef4444' }}>{res.error}</span>
+                            {res.had_error && res.status === 'ok' && (
+                              <span style={{ marginLeft: 8, fontSize: '0.85em', opacity: 0.7 }}>(continued)</span>
+                            )}
+                          </div>
+                        )}
+
+                        {(step.type === 'openai_agent' || step.type === 'claude_agent') && Array.isArray(res.tool_call_log) && res.tool_call_log.length > 0 && (
+                          <div style={{ marginTop: 6, marginLeft: 12, fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+                            <div style={{ marginBottom: 4, fontWeight: 500 }}>Tool Calls:</div>
+                            {res.tool_call_log.map((tc: any, i: number) => (
+                              <div key={i} style={{ marginLeft: 8, marginBottom: 4 }}>
+                                <span style={{ color: '#10b981' }}>{tc?.name || 'unknown'}</span>
+                                {tc?.args && (
+                                  <>
+                                    {' '}
+                                    <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.95em' }}>
+                                      {JSON.stringify(tc.args)}
+                                    </code>
+                                  </>
+                                )}
+                                {tc?.result && (
+                                  <>
+                                    {' → '}
+                                    <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.95em' }}>
+                                      {typeof tc.result === 'object' ? JSON.stringify(tc.result) : String(tc.result)}
+                                    </code>
+                                  </>
+                                )}
                               </div>
-
-                              {inputValue !== undefined && inputValue !== null && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Input:</span>{' '}
-                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                    {typeof inputValue === 'object' ? JSON.stringify(inputValue) : String(inputValue)}
-                                  </code>
-                                </div>
-                              )}
-
-                              {res.route !== undefined && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Route:</span>{' '}
-                                  <strong style={{ color: res.route === 'yes' ? '#22c55e' : '#ef4444' }}>{String(res.route)}</strong>
-                                </div>
-                              )}
-
-                              {res.output !== undefined && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Output:</span>{' '}
-                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                    {typeof res.output === 'object' ? JSON.stringify(res.output) : String(res.output)}
-                                  </code>
-                                </div>
-                              )}
-
-                              {res.final !== undefined && res.output === undefined && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Final:</span>{' '}
-                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                    {typeof res.final === 'object' ? JSON.stringify(res.final) : String(res.final)}
-                                  </code>
-                                </div>
-                              )}
-
-                              {(res.status === 'error' || res.had_error) && res.error && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: '#ef4444' }}>Error:</span>{' '}
-                                  <span style={{ color: '#ef4444' }}>{res.error}</span>
-                                  {res.had_error && res.status === 'ok' && (
-                                    <span style={{ marginLeft: 8, fontSize: '0.85em', opacity: 0.7 }}>(continued)</span>
-                                  )}
-                                </div>
-                              )}
-                            </li>
-                          )
-                        })}
-                      </ol>
-                    ) : (
-                      <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No steps executed.</p>
-                    )}
-                  </div>
-                )
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ol>
               ) : (
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  Run the workflow to see output and trace here.
-                </p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>No steps executed.</p>
               )}
             </div>
-          )}
+          )
+        ) : (
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            Run the workflow to see output and trace here.
+          </p>
+        )}
+      </div>
 
-          {/* Node Details Tab */}
-          {sidebarTab === 'node' && selectedNode && (
-            <div className="sidebar-panel">
-              <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Node Configuration</h3>
+      {selectedNode && (
+        <div className="node-details">
+          <h3>Node Details</h3>
+          <div className="detail-item">
+            <strong>Type:</strong> {selectedNode.type}
+          </div>
+          <div className="detail-item">
+            <strong>Label:</strong>
+            <input
+              type="text"
+              value={(selectedNode.data as any)?.label ?? ''}
+              onChange={(e) => {
+                const newLabel = e.target.value
+                setNodes((nds) =>
+                  nds.map((n) =>
+                    n.id === selectedNode.id
+                      ? { ...n, data: { ...(n.data as any), label: newLabel } }
+                      : n
+                  )
+                )
+                setSelectedNode((prev) =>
+                  prev ? { ...prev, data: { ...(prev.data as any), label: newLabel } } : prev
+                )
+              }}
+              style={{ width: '100%', marginLeft: 6 }}
+            />
+          </div>
+          <div className="detail-item">
+            <strong>ID:</strong> {selectedNode.id}
+          </div>
+          {selectedNode.type === 'input' && (
+            <div className="detail-item">
+              <strong>Value:</strong>
+              <input
+                type="text"
+                value={(selectedNode.data as any)?.value ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setNodes((nds) =>
+                    nds.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), value } } : n))
+                  )
+                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), value } } : prev))
+                }}
+                style={{ width: '100%', marginLeft: 6 }}
+                placeholder="Default input used if run input is blank"
+              />
+            </div>
+          )}
+          {(selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent' || selectedNode.type === 'ollama_agent') && (
+            <>
               <div className="detail-item">
-                <strong>Type:</strong> {selectedNode.type}
-              </div>
-              <div className="detail-item">
-                <strong>Label:</strong>
+                <strong>Model:</strong>
                 <input
                   type="text"
-                  value={(selectedNode.data as any)?.label ?? ''}
+                  value={(selectedNode.data as any)?.model ?? (
+                    selectedNode.type === 'claude_agent' ? 'claude-3-5-sonnet-20241022' : (
+                      selectedNode.type === 'openai_agent' ? 'gpt-4o-mini' : 'llama3.1:8b-instruct'
+                    )
+                  )}
                   onChange={(e) => {
-                    const newLabel = e.target.value
+                    const model = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                  placeholder={
+                    selectedNode.type === 'claude_agent'
+                      ? 'e.g., claude-3-5-sonnet-20241022'
+                      : selectedNode.type === 'openai_agent'
+                      ? 'e.g., gpt-4o-mini'
+                      : 'e.g., llama3.1:8b-instruct'
+                  }
+                />
+              </div>
+              <div className="detail-item">
+                <strong>Temperature:</strong>
+                <input
+                  type="number"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={(selectedNode.data as any)?.temperature ?? 0.2}
+                  onChange={(e) => {
+                    const temperature = parseFloat(e.target.value)
                     setNodes((nds) =>
                       nds.map((n) =>
                         n.id === selectedNode.id
-                          ? { ...n, data: { ...(n.data as any), label: newLabel } }
+                          ? { ...n, data: { ...(n.data as any), temperature } }
                           : n
                       )
                     )
                     setSelectedNode((prev) =>
-                      prev ? { ...prev, data: { ...(prev.data as any), label: newLabel } } : prev
+                      prev ? { ...prev, data: { ...(prev.data as any), temperature } } : prev
+                    )
+                  }}
+                  style={{ width: 100, marginLeft: 6 }}
+                />
+              </div>
+              <div className="detail-item">
+                <strong>System Prompt:</strong>
+                <textarea
+                  value={(selectedNode.data as any)?.system ?? 'You are a helpful assistant.'}
+                  onChange={(e) => {
+                    const system = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), system } } : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), system } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6, minHeight: 60 }}
+                />
+              </div>
+            </>
+          )}
+          {selectedNode.type === 'huggingface' && (
+            <>
+              <div className="detail-item">
+                <strong>Model:</strong>
+                <input
+                  type="text"
+                  value={(selectedNode.data as any)?.model ?? ''}
+                  onChange={(e) => {
+                    const model = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                  placeholder="e.g., distilbert-base-uncased-finetuned-sst-2-english"
+                />
+              </div>
+              <div className="detail-item">
+                <strong>Task:</strong>
+                <select
+                  value={(selectedNode.data as any)?.task ?? 'text-classification'}
+                  onChange={(e) => {
+                    const task = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), task } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev ? { ...prev, data: { ...(prev.data as any), task } } : prev
                     )
                   }}
                   style={{ width: '100%', marginLeft: 6 }}
-                />
+                >
+                  <option value="text-classification">Text Classification</option>
+                  <option value="sentiment-analysis">Sentiment Analysis</option>
+                  <option value="zero-shot-classification">Zero-Shot Classification</option>
+                  <option value="question-answering">Question Answering</option>
+                  <option value="ner">Named Entity Recognition (NER)</option>
+                  <option value="feature-extraction">Feature Extraction (Embeddings)</option>
+                  <option value="summarization">Summarization</option>
+                  <option value="translation">Translation</option>
+                </select>
               </div>
-              <div className="detail-item">
-                <strong>ID:</strong> <code style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{selectedNode.id}</code>
-              </div>
-
-              {/* Input Node */}
-              {selectedNode.type === 'input' && (
+              {(selectedNode.data as any)?.task === 'zero-shot-classification' && (
                 <div className="detail-item">
-                  <strong>Value:</strong>
+                  <strong>Candidate Labels:</strong>
                   <input
                     type="text"
-                    value={(selectedNode.data as any)?.value ?? ''}
+                    value={(selectedNode.data as any)?.candidate_labels?.join(', ') ?? ''}
                     onChange={(e) => {
-                      const value = e.target.value
-                      setNodes((nds) =>
-                        nds.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), value } } : n))
-                      )
-                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), value } } : prev))
-                    }}
-                    style={{ width: '100%', marginLeft: 6 }}
-                    placeholder="Default input used if run input is blank"
-                  />
-                </div>
-              )}
-
-              {/* AI Agent Nodes (OpenAI, Claude, Ollama) */}
-              {(selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent' || selectedNode.type === 'ollama_agent') && (
-                <>
-                  <div className="detail-item">
-                    <strong>Model:</strong>
-                    <input
-                      type="text"
-                      value={(selectedNode.data as any)?.model ?? (
-                        selectedNode.type === 'claude_agent' ? 'claude-3-5-sonnet-20241022' : (
-                          selectedNode.type === 'openai_agent' ? 'gpt-4o-mini' : 'llama3.1:8b-instruct'
-                        )
-                      )}
-                      onChange={(e) => {
-                        const model = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
-                          )
-                        )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
-                      }}
-                      style={{ width: '100%', marginLeft: 6 }}
-                      placeholder={
-                        selectedNode.type === 'claude_agent'
-                          ? 'e.g., claude-3-5-sonnet-20241022'
-                          : selectedNode.type === 'openai_agent'
-                          ? 'e.g., gpt-4o-mini'
-                          : 'e.g., llama3.1:8b-instruct'
-                      }
-                    />
-                  </div>
-                  <div className="detail-item">
-                    <strong>Temperature:</strong>
-                    <input
-                      type="number"
-                      min={0}
-                      max={2}
-                      step={0.1}
-                      value={(selectedNode.data as any)?.temperature ?? 0.2}
-                      onChange={(e) => {
-                        const temperature = parseFloat(e.target.value)
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id
-                              ? { ...n, data: { ...(n.data as any), temperature } }
-                              : n
-                          )
-                        )
-                        setSelectedNode((prev) =>
-                          prev ? { ...prev, data: { ...(prev.data as any), temperature } } : prev
-                        )
-                      }}
-                      style={{ width: 100, marginLeft: 6 }}
-                    />
-                  </div>
-                  <div className="detail-item">
-                    <strong>System Prompt:</strong>
-                    <textarea
-                      value={(selectedNode.data as any)?.system ?? 'You are a helpful assistant.'}
-                      onChange={(e) => {
-                        const system = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), system } } : n
-                          )
-                        )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), system } } : prev))
-                      }}
-                      style={{ width: '100%', marginLeft: 6, minHeight: 80 }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Hugging Face Node */}
-              {selectedNode.type === 'huggingface' && (
-                <>
-                  <div className="detail-item">
-                    <strong>Model:</strong>
-                    <input
-                      type="text"
-                      value={(selectedNode.data as any)?.model ?? ''}
-                      onChange={(e) => {
-                        const model = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
-                          )
-                        )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
-                      }}
-                      style={{ width: '100%', marginLeft: 6 }}
-                      placeholder="e.g., distilbert-base-uncased-finetuned-sst-2-english"
-                    />
-                  </div>
-                  <div className="detail-item">
-                    <strong>Task:</strong>
-                    <select
-                      value={(selectedNode.data as any)?.task ?? 'text-classification'}
-                      onChange={(e) => {
-                        const task = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id
-                              ? { ...n, data: { ...(n.data as any), task } }
-                              : n
-                          )
-                        )
-                        setSelectedNode((prev) =>
-                          prev ? { ...prev, data: { ...(prev.data as any), task } } : prev
-                        )
-                      }}
-                      style={{ width: '100%', marginLeft: 6 }}
-                    >
-                      <option value="text-classification">Text Classification</option>
-                      <option value="sentiment-analysis">Sentiment Analysis</option>
-                      <option value="zero-shot-classification">Zero-Shot Classification</option>
-                      <option value="question-answering">Question Answering</option>
-                      <option value="ner">Named Entity Recognition (NER)</option>
-                      <option value="feature-extraction">Feature Extraction (Embeddings)</option>
-                      <option value="summarization">Summarization</option>
-                      <option value="translation">Translation</option>
-                    </select>
-                  </div>
-                  {(selectedNode.data as any)?.task === 'zero-shot-classification' && (
-                    <div className="detail-item">
-                      <strong>Candidate Labels:</strong>
-                      <input
-                        type="text"
-                        value={(selectedNode.data as any)?.candidate_labels?.join(', ') ?? ''}
-                        onChange={(e) => {
-                          const candidate_labels = e.target.value.split(',').map(s => s.trim()).filter(s => s)
-                          setNodes((nds) =>
-                            nds.map((n) =>
-                              n.id === selectedNode.id
-                                ? { ...n, data: { ...(n.data as any), candidate_labels } }
-                                : n
-                            )
-                          )
-                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), candidate_labels } } : prev))
-                        }}
-                        style={{ width: '100%', marginLeft: 6 }}
-                        placeholder="e.g., positive, negative, neutral"
-                      />
-                    </div>
-                  )}
-                  {(selectedNode.data as any)?.task === 'question-answering' && (
-                    <div className="detail-item">
-                      <strong>Question:</strong>
-                      <input
-                        type="text"
-                        value={(selectedNode.data as any)?.question ?? ''}
-                        onChange={(e) => {
-                          const question = e.target.value
-                          setNodes((nds) =>
-                            nds.map((n) =>
-                              n.id === selectedNode.id
-                                ? { ...n, data: { ...(n.data as any), question } }
-                                : n
-                            )
-                          )
-                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), question } } : prev))
-                        }}
-                        style={{ width: '100%', marginLeft: 6 }}
-                        placeholder="e.g., What is the main topic?"
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Memory Node */}
-              {selectedNode.type === 'memory' && (
-                <div className="detail-item">
-                  <strong>Key:</strong>
-                  <input
-                    type="text"
-                    value={(selectedNode.data as any)?.key ?? ''}
-                    onChange={(e) => {
-                      const key = e.target.value
+                      const candidate_labels = e.target.value.split(',').map(s => s.trim()).filter(s => s)
                       setNodes((nds) =>
                         nds.map((n) =>
                           n.id === selectedNode.id
-                            ? { ...n, data: { ...(n.data as any), key } }
+                            ? { ...n, data: { ...(n.data as any), candidate_labels } }
                             : n
                         )
                       )
-                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), key } } : prev))
+                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), candidate_labels } } : prev))
                     }}
                     style={{ width: '100%', marginLeft: 6 }}
-                    placeholder="e.g., session"
+                    placeholder="e.g., positive, negative, neutral"
                   />
                 </div>
               )}
+              {(selectedNode.data as any)?.task === 'question-answering' && (
+                <div className="detail-item">
+                  <strong>Question:</strong>
+                  <input
+                    type="text"
+                    value={(selectedNode.data as any)?.question ?? ''}
+                    onChange={(e) => {
+                      const question = e.target.value
+                      setNodes((nds) =>
+                        nds.map((n) =>
+                          n.id === selectedNode.id
+                            ? { ...n, data: { ...(n.data as any), question } }
+                            : n
+                        )
+                      )
+                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), question } } : prev))
+                    }}
+                    style={{ width: '100%', marginLeft: 6 }}
+                    placeholder="e.g., What is the main topic?"
+                  />
+                </div>
+              )}
+            </>
+          )}
+          {selectedNode.type === 'memory' && (
+            <div className="detail-item">
+              <strong>Key:</strong>
+              <input
+                type="text"
+                value={(selectedNode.data as any)?.key ?? ''}
+                onChange={(e) => {
+                  const key = e.target.value
+                  setNodes((nds) =>
+                    nds.map((n) =>
+                      n.id === selectedNode.id
+                        ? { ...n, data: { ...(n.data as any), key } }
+                        : n
+                    )
+                  )
+                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), key } } : prev))
+                }}
+                style={{ width: '100%', marginLeft: 6 }}
+                placeholder="e.g., session"
+              />
+            </div>
+          )}
 
-              {/* Tool Node */}
-              {selectedNode.type === 'tool' && (
+          {selectedNode.type === 'tool' && (
+            <>
+              <div className="detail-item">
+                <strong>Operation:</strong>
+                <select
+                  value={(selectedNode.data as any)?.operation ?? 'echo'}
+                  onChange={(e) => {
+                    const operation = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), operation } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev
+                    )
+                  }}
+                  style={{ marginLeft: 6 }}
+                >
+                  <option value="echo">Echo Params</option>
+                  <option value="uppercase">Uppercase Input</option>
+                  <option value="lowercase">Lowercase Input</option>
+                  <option value="append">Append Suffix</option>
+                  <option value="google_search">Google Search</option>
+                </select>
+              </div>
+              <div className="detail-item">
+                <strong>Arg:</strong>
+                <input
+                  type="text"
+                  value={(selectedNode.data as any)?.arg ?? ''}
+                  onChange={(e) => {
+                    const arg = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), arg } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), arg } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                  placeholder={(selectedNode.data as any)?.operation === 'google_search' ? 'Optional: e.g., site:example.com OR extra keywords' : 'Used for Append'}
+                />
+              </div>
+
+            </>
+          )}
+
+          {selectedNode.type === 'text_transform' && (
+            <>
+              <div className="detail-item">
+                <strong>Operation:</strong>
+                <select
+                  value={(selectedNode.data as any)?.operation ?? 'upper'}
+                  onChange={(e) => {
+                    const operation = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), operation } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev
+                    )
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                >
+                  <option value="upper">Uppercase</option>
+                  <option value="lower">Lowercase</option>
+                  <option value="trim">Trim Whitespace</option>
+                  <option value="replace">Replace</option>
+                  <option value="regex_replace">Regex Replace</option>
+                  <option value="regex_extract">Regex Extract</option>
+                  <option value="filter_lines">Filter Lines</option>
+                  <option value="split">Split</option>
+                  <option value="join">Join Lines</option>
+                  <option value="substring">Substring</option>
+                  <option value="length">Length</option>
+                </select>
+              </div>
+
+              {(selectedNode.data as any)?.operation === 'replace' && (
                 <>
                   <div className="detail-item">
-                    <strong>Operation:</strong>
-                    <select
-                      value={(selectedNode.data as any)?.operation ?? 'echo'}
-                      onChange={(e) => {
-                        const operation = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id
-                              ? { ...n, data: { ...(n.data as any), operation } }
-                              : n
-                          )
-                        )
-                        setSelectedNode((prev) =>
-                          prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev
-                        )
-                      }}
-                      style={{ marginLeft: 6 }}
-                    >
-                      <option value="echo">Echo Params</option>
-                      <option value="uppercase">Uppercase Input</option>
-                      <option value="lowercase">Lowercase Input</option>
-                      <option value="append">Append Suffix</option>
-                      <option value="google_search">Google Search</option>
-                    </select>
-                  </div>
-                  <div className="detail-item">
-                    <strong>Arg:</strong>
+                    <strong>Find:</strong>
                     <input
                       type="text"
-                      value={(selectedNode.data as any)?.arg ?? ''}
+                      value={(selectedNode.data as any)?.find ?? ''}
                       onChange={(e) => {
-                        const arg = e.target.value
+                        const find = e.target.value
                         setNodes((nds) =>
                           nds.map((n) =>
                             n.id === selectedNode.id
-                              ? { ...n, data: { ...(n.data as any), arg } }
+                              ? { ...n, data: { ...(n.data as any), find } }
                               : n
                           )
                         )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), arg } } : prev))
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), find } } : prev))
                       }}
                       style={{ width: '100%', marginLeft: 6 }}
-                      placeholder={(selectedNode.data as any)?.operation === 'google_search' ? 'Optional: e.g., site:example.com OR extra keywords' : 'Used for Append'}
+                      placeholder="Text to find"
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Replace With:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.replace_with ?? ''}
+                      onChange={(e) => {
+                        const replace_with = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), replace_with } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), replace_with } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="Replacement text"
                     />
                   </div>
                 </>
               )}
 
-              {/* Text Transform Node */}
-              {selectedNode.type === 'text_transform' && (
+              {((selectedNode.data as any)?.operation === 'regex_replace' ||
+                (selectedNode.data as any)?.operation === 'regex_extract' ||
+                (selectedNode.data as any)?.operation === 'filter_lines') && (
                 <>
                   <div className="detail-item">
-                    <strong>Operation:</strong>
-                    <select
-                      value={(selectedNode.data as any)?.operation ?? 'upper'}
+                    <strong>Pattern:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.pattern ?? ''}
                       onChange={(e) => {
-                        const operation = e.target.value
+                        const pattern = e.target.value
                         setNodes((nds) =>
                           nds.map((n) =>
                             n.id === selectedNode.id
-                              ? { ...n, data: { ...(n.data as any), operation } }
+                              ? { ...n, data: { ...(n.data as any), pattern } }
                               : n
                           )
                         )
-                        setSelectedNode((prev) =>
-                          prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev
-                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), pattern } } : prev))
                       }}
                       style={{ width: '100%', marginLeft: 6 }}
-                    >
-                      <option value="upper">Uppercase</option>
-                      <option value="lower">Lowercase</option>
-                      <option value="trim">Trim Whitespace</option>
-                      <option value="replace">Replace</option>
-                      <option value="regex_replace">Regex Replace</option>
-                      <option value="regex_extract">Regex Extract</option>
-                      <option value="filter_lines">Filter Lines</option>
-                      <option value="split">Split</option>
-                      <option value="join">Join Lines</option>
-                      <option value="substring">Substring</option>
-                      <option value="length">Length</option>
-                    </select>
+                      placeholder="Regex pattern (e.g., \\d+)"
+                    />
                   </div>
-
-                  {(selectedNode.data as any)?.operation === 'replace' && (
-                    <>
-                      <div className="detail-item">
-                        <strong>Find:</strong>
-                        <input
-                          type="text"
-                          value={(selectedNode.data as any)?.find ?? ''}
-                          onChange={(e) => {
-                            const find = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...(n.data as any), find } }
-                                  : n
-                              )
-                            )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), find } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                          placeholder="Text to find"
-                        />
-                      </div>
-                      <div className="detail-item">
-                        <strong>Replace With:</strong>
-                        <input
-                          type="text"
-                          value={(selectedNode.data as any)?.replace_with ?? ''}
-                          onChange={(e) => {
-                            const replace_with = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...(n.data as any), replace_with } }
-                                  : n
-                              )
-                            )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), replace_with } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                          placeholder="Replacement text"
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {((selectedNode.data as any)?.operation === 'regex_replace' ||
-                    (selectedNode.data as any)?.operation === 'regex_extract' ||
-                    (selectedNode.data as any)?.operation === 'filter_lines') && (
-                    <>
-                      <div className="detail-item">
-                        <strong>Pattern:</strong>
-                        <input
-                          type="text"
-                          value={(selectedNode.data as any)?.pattern ?? ''}
-                          onChange={(e) => {
-                            const pattern = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...(n.data as any), pattern } }
-                                  : n
-                              )
-                            )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), pattern } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                          placeholder="Regex pattern (e.g., \\d+)"
-                        />
-                      </div>
-                      {(selectedNode.data as any)?.operation === 'regex_replace' && (
-                        <div className="detail-item">
-                          <strong>Replace With:</strong>
-                          <input
-                            type="text"
-                            value={(selectedNode.data as any)?.replace_with ?? ''}
-                            onChange={(e) => {
-                              const replace_with = e.target.value
-                              setNodes((nds) =>
-                                nds.map((n) =>
-                                  n.id === selectedNode.id
-                                    ? { ...n, data: { ...(n.data as any), replace_with } }
-                                    : n
-                                )
-                              )
-                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), replace_with } } : prev))
-                            }}
-                            style={{ width: '100%', marginLeft: 6 }}
-                            placeholder="Replacement text"
-                          />
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {((selectedNode.data as any)?.operation === 'split' ||
-                    (selectedNode.data as any)?.operation === 'join') && (
+                  {(selectedNode.data as any)?.operation === 'regex_replace' && (
                     <div className="detail-item">
-                      <strong>Delimiter:</strong>
+                      <strong>Replace With:</strong>
                       <input
                         type="text"
-                        value={(selectedNode.data as any)?.delimiter ?? ((selectedNode.data as any)?.operation === 'split' ? ',' : ' ')}
+                        value={(selectedNode.data as any)?.replace_with ?? ''}
                         onChange={(e) => {
-                          const delimiter = e.target.value
+                          const replace_with = e.target.value
                           setNodes((nds) =>
                             nds.map((n) =>
                               n.id === selectedNode.id
-                                ? { ...n, data: { ...(n.data as any), delimiter } }
+                                ? { ...n, data: { ...(n.data as any), replace_with } }
                                 : n
                             )
                           )
-                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), delimiter } } : prev))
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), replace_with } } : prev))
                         }}
                         style={{ width: '100%', marginLeft: 6 }}
-                        placeholder={(selectedNode.data as any)?.operation === 'split' ? 'e.g., ,' : 'e.g., space'}
+                        placeholder="Replacement text"
                       />
                     </div>
-                  )}
-
-                  {(selectedNode.data as any)?.operation === 'substring' && (
-                    <>
-                      <div className="detail-item">
-                        <strong>Start:</strong>
-                        <input
-                          type="number"
-                          value={(selectedNode.data as any)?.start ?? 0}
-                          onChange={(e) => {
-                            const start = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...(n.data as any), start } }
-                                  : n
-                              )
-                            )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), start } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                          placeholder="Start index"
-                        />
-                      </div>
-                      <div className="detail-item">
-                        <strong>End (optional):</strong>
-                        <input
-                          type="number"
-                          value={(selectedNode.data as any)?.end ?? ''}
-                          onChange={(e) => {
-                            const end = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...(n.data as any), end } }
-                                  : n
-                              )
-                            )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), end } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                          placeholder="End index (leave empty for end of string)"
-                        />
-                      </div>
-                    </>
                   )}
                 </>
               )}
 
-              {/* Test Execution Section */}
-              <div className="detail-item" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <strong>Test Input:</strong>
-                <input
-                  type="text"
-                  value={executionInput}
-                  onChange={(e) => setExecutionInput(e.target.value)}
-                  placeholder="Type input to execute..."
-                  style={{ width: '100%', marginTop: 6 }}
-                />
-              </div>
-              <div className="detail-item">
-                <button className="btn-primary" onClick={executeSelectedNode} style={{ width: '100%' }}>
-                  Execute Node
-                </button>
-              </div>
-              {executionResult && (
+              {((selectedNode.data as any)?.operation === 'split' ||
+                (selectedNode.data as any)?.operation === 'join') && (
                 <div className="detail-item">
-                  <strong>Result:</strong>
-                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.8rem', background: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: '6px', maxHeight: '200px', overflow: 'auto' }}>
-                    {JSON.stringify(executionResult, null, 2)}
-                  </pre>
+                  <strong>Delimiter:</strong>
+                  <input
+                    type="text"
+                    value={(selectedNode.data as any)?.delimiter ?? ((selectedNode.data as any)?.operation === 'split' ? ',' : ' ')}
+                    onChange={(e) => {
+                      const delimiter = e.target.value
+                      setNodes((nds) =>
+                        nds.map((n) =>
+                          n.id === selectedNode.id
+                            ? { ...n, data: { ...(n.data as any), delimiter } }
+                            : n
+                        )
+                      )
+                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), delimiter } } : prev))
+                    }}
+                    style={{ width: '100%', marginLeft: 6 }}
+                    placeholder={(selectedNode.data as any)?.operation === 'split' ? 'e.g., ,' : 'e.g., space'}
+                  />
                 </div>
               )}
 
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <button
-                  className="btn-delete"
-                  onClick={deleteSelectedNode}
-                  style={{ flex: 1 }}
-                >
-                  Delete Node
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Node History Tab */}
-          {sidebarTab === 'history' && (hoveredNode || selectedNode) && (
-            <div className="sidebar-panel">
-              <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-                Node Execution History
-              </h3>
-              {(() => {
-                const nodeId = hoveredNode || selectedNode?.id
-                const history = nodeId ? nodeExecutionHistory[nodeId] : null
-
-                if (!history || history.length === 0) {
-                  return (
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      No execution history for this node yet.
-                    </p>
-                  )
-                }
-
-                return (
-                  <div>
-                    <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Total executions: <strong style={{ color: 'var(--text-primary)' }}>{history.length}</strong>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {history.slice(0, 10).map((exec: any, idx: number) => (
-                        <div
-                          key={idx}
-                          style={{
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '6px',
-                            padding: '0.75rem',
-                            background: 'var(--bg-tertiary)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                              {exec.status === 'completed' ? '✓' : '✗'} Execution #{history.length - idx}
-                            </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {new Date(exec.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          {exec.input !== undefined && (
-                            <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                              <span style={{ color: 'var(--text-secondary)' }}>In:</span>{' '}
-                              <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.75rem' }}>
-                                {String(exec.input).substring(0, 60)}{String(exec.input).length > 60 ? '...' : ''}
-                              </code>
-                            </div>
-                          )}
-                          {exec.output !== undefined && exec.output !== null && (
-                            <div style={{ fontSize: '0.85rem' }}>
-                              <span style={{ color: 'var(--text-secondary)' }}>Out:</span>{' '}
-                              <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.75rem' }}>
-                                {String(exec.output).substring(0, 60)}{String(exec.output).length > 60 ? '...' : ''}
-                              </code>
-                            </div>
-                          )}
-                          {exec.error && (
-                            <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#ef4444' }}>
-                              Error: {String(exec.error).substring(0, 80)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {history.length > 10 && (
-                      <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                        Showing 10 of {history.length} executions
-                      </div>
-                    )}
+              {(selectedNode.data as any)?.operation === 'substring' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Start:</strong>
+                    <input
+                      type="number"
+                      value={(selectedNode.data as any)?.start ?? 0}
+                      onChange={(e) => {
+                        const start = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), start } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), start } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="Start index"
+                    />
                   </div>
-                )
-              })()}
+                  <div className="detail-item">
+                    <strong>End (optional):</strong>
+                    <input
+                      type="number"
+                      value={(selectedNode.data as any)?.end ?? ''}
+                      onChange={(e) => {
+                        const end = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), end } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), end } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="End index (leave empty for end of string)"
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          <div className="detail-item">
+            <strong>Test Input:</strong>
+            <input
+              type="text"
+              value={executionInput}
+              onChange={(e) => setExecutionInput(e.target.value)}
+              placeholder="Type input to execute..."
+              style={{ width: '100%', marginTop: 6 }}
+            />
+          </div>
+          <div className="detail-item">
+            <button className="btn-primary" onClick={executeSelectedNode}>
+              Execute Node
+            </button>
+          </div>
+          {executionResult && (
+            <div className="detail-item">
+              <strong>Result:</strong>
+              <pre style={{ whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(executionResult, null, 2)}
+              </pre>
             </div>
           )}
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <button
+              className="btn-delete"
+              onClick={deleteSelectedNode}
+              style={{ flex: 1 }}
+            >
+              Delete Node
+            </button>
+            <button
+              className="btn-close"
+              onClick={() => setSelectedNode(null)}
+              style={{ flex: 1 }}
+            >
+              Close
+            </button>
+          </div>
         </div>
-      </div>
-      {/* End Flow Main */}
-      </div>
+      )}
 
       {/* Triggers Modal */}
       {showTriggersModal && currentWorkflow && (
