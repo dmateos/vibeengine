@@ -1,4 +1,5 @@
 from django.db import models
+import secrets
 
 
 class MemoryEntry(models.Model):
@@ -29,6 +30,8 @@ class Workflow(models.Model):
     description = models.TextField(blank=True, null=True)
     nodes = models.JSONField(default=list)
     edges = models.JSONField(default=list)
+    api_enabled = models.BooleanField(default=False)
+    api_key = models.CharField(max_length=64, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -37,3 +40,8 @@ class Workflow(models.Model):
 
     def __str__(self):
         return self.name
+
+    def generate_api_key(self):
+        """Generate a new API key for this workflow."""
+        self.api_key = f"wf_{secrets.token_urlsafe(32)}"
+        return self.api_key

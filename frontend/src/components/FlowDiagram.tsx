@@ -52,6 +52,8 @@ interface Workflow {
   description: string
   nodes: Node[]
   edges: Edge[]
+  api_enabled: boolean
+  api_key: string | null
   created_at: string
   updated_at: string
 }
@@ -96,6 +98,7 @@ function FlowDiagram() {
   const [workflowResult, setWorkflowResult] = useState<any>(null)
   const [running, setRunning] = useState(false)
   const [viewMode, setViewMode] = useState<'log' | 'json'>('log')
+  const [showTriggersModal, setShowTriggersModal] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [consoleHeight, setConsoleHeight] = useState(240)
   const [isResizing, setIsResizing] = useState(false)
@@ -337,6 +340,65 @@ function FlowDiagram() {
     }
   }
 
+  const toggleApiAccess = async () => {
+    if (!currentWorkflow) return
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/workflows/${currentWorkflow.id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_enabled: !currentWorkflow.api_enabled,
+        }),
+      })
+
+      if (response.ok) {
+        const updated = await response.json()
+        setCurrentWorkflow(updated)
+        showToast(
+          updated.api_enabled ? 'API access enabled' : 'API access disabled',
+          'success'
+        )
+      }
+    } catch (error) {
+      console.error('Error toggling API access:', error)
+      showToast('Error updating API access', 'error')
+    }
+  }
+
+  const regenerateApiKey = async () => {
+    if (!currentWorkflow) return
+    if (!confirm('Are you sure you want to regenerate the API key? The old key will stop working.')) return
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/workflows/${currentWorkflow.id}/regenerate-api-key/`,
+        {
+          method: 'POST',
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentWorkflow({
+          ...currentWorkflow,
+          api_key: data.api_key,
+        })
+        showToast('API key regenerated successfully', 'success')
+      }
+    } catch (error) {
+      console.error('Error regenerating API key:', error)
+      showToast('Error regenerating API key', 'error')
+    }
+  }
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    showToast(`${label} copied to clipboard`, 'success')
+  }
+
   const addNode = (nodeType: NodeTypeData) => {
     // Better positioning: arrange nodes in a grid pattern to prevent overlap
     const gridCols = 3
@@ -573,6 +635,14 @@ function FlowDiagram() {
             onClick={() => setShowWorkflowList(!showWorkflowList)}
           >
             {showWorkflowList ? 'Close' : 'Load Workflow'}
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => setShowTriggersModal(true)}
+            disabled={!currentWorkflow}
+            title={currentWorkflow ? 'Configure API triggers' : 'Save workflow first'}
+          >
+            ⚡ Triggers
           </button>
           <button className="btn-secondary" onClick={createNewWorkflow}>
             New Workflow
@@ -1374,6 +1444,180 @@ function FlowDiagram() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Triggers Modal */}
+      {showTriggersModal && currentWorkflow && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowTriggersModal(false)}
+        >
+          <div
+            style={{
+              background: 'var(--card-bg)',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 8px 32px var(--shadow-lg)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+              ⚡ External Triggers
+            </h2>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '1rem',
+                }}
+              >
+                <strong style={{ color: 'var(--text-primary)' }}>API Access</strong>
+                <button
+                  className={currentWorkflow.api_enabled ? 'btn-primary' : 'btn-secondary'}
+                  onClick={toggleApiAccess}
+                  style={{ minWidth: '100px' }}
+                >
+                  {currentWorkflow.api_enabled ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
+
+              {currentWorkflow.api_enabled && currentWorkflow.api_key && (
+                <div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                      API Endpoint
+                    </strong>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${API_BASE_URL}/workflows/${currentWorkflow.id}/trigger/`}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'monospace',
+                          fontSize: '0.85rem',
+                        }}
+                      />
+                      <button
+                        className="btn-secondary"
+                        onClick={() =>
+                          copyToClipboard(
+                            `${API_BASE_URL}/workflows/${currentWorkflow.id}/trigger/`,
+                            'Endpoint'
+                          )
+                        }
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                      API Key
+                    </strong>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="password"
+                        readOnly
+                        value={currentWorkflow.api_key}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'monospace',
+                          fontSize: '0.85rem',
+                        }}
+                      />
+                      <button
+                        className="btn-secondary"
+                        onClick={() => copyToClipboard(currentWorkflow.api_key || '', 'API key')}
+                      >
+                        Copy
+                      </button>
+                      <button className="btn-secondary" onClick={regenerateApiKey}>
+                        Regenerate
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: '1rem',
+                      background: 'var(--bg-tertiary)',
+                      borderRadius: '8px',
+                      marginBottom: '1rem',
+                    }}
+                  >
+                    <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                      Example cURL Command
+                    </strong>
+                    <pre
+                      style={{
+                        margin: 0,
+                        padding: '0.75rem',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        overflow: 'auto',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+{`curl -X POST ${API_BASE_URL}/workflows/${currentWorkflow.id}/trigger/ \\
+  -H "X-API-Key: ${currentWorkflow.api_key}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"input": "your input text here"}'`}
+                    </pre>
+                    <button
+                      className="btn-secondary"
+                      onClick={() =>
+                        copyToClipboard(
+                          `curl -X POST ${API_BASE_URL}/workflows/${currentWorkflow.id}/trigger/ -H "X-API-Key: ${currentWorkflow.api_key}" -H "Content-Type: application/json" -d '{"input": "your input text here"}'`,
+                          'cURL command'
+                        )
+                      }
+                      style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}
+                    >
+                      Copy Command
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <button className="btn-primary" onClick={() => setShowTriggersModal(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

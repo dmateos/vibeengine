@@ -11,5 +11,7 @@ urlpatterns = [
     path('execute-workflow/', views.execute_workflow, name='execute_workflow'),
     path('execute-workflow-async/', views.execute_workflow_async, name='execute_workflow_async'),
     path('execution/<str:execution_id>/status/', views.execution_status, name='execution_status'),
+    path('workflows/<int:workflow_id>/trigger/', views.trigger_workflow, name='trigger_workflow'),
+    path('workflows/<int:workflow_id>/regenerate-api-key/', views.regenerate_api_key, name='regenerate_api_key'),
     path('', include(router.urls)),
 ]
