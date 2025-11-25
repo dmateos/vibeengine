@@ -12,6 +12,8 @@ from .memory import MemoryDriver
 from .parallel import ParallelDriver
 from .join import JoinDriver
 from .json_validator import JSONValidatorDriver
+from .huggingface import HuggingFaceDriver
+from .text_transform import TextTransformDriver
 
 
 # Registry of all available drivers
@@ -19,6 +21,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     OpenAIAgentDriver.type: OpenAIAgentDriver(),
     ClaudeAgentDriver.type: ClaudeAgentDriver(),
     OllamaAgentDriver.type: OllamaAgentDriver(),
+    HuggingFaceDriver.type: HuggingFaceDriver(),
     ToolDriver.type: ToolDriver(),
     RouterDriver.type: RouterDriver(),
     ConditionDriver.type: ConditionDriver(),
@@ -28,6 +31,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     ParallelDriver.type: ParallelDriver(),
     JoinDriver.type: JoinDriver(),
     JSONValidatorDriver.type: JSONValidatorDriver(),
+    TextTransformDriver.type: TextTransformDriver(),
 }
 
 
@@ -64,6 +68,7 @@ __all__ = [
     "OpenAIAgentDriver",
     "ClaudeAgentDriver",
     "OllamaAgentDriver",
+    "HuggingFaceDriver",
     "ToolDriver",
     "RouterDriver",
     "ConditionDriver",
@@ -73,6 +78,7 @@ __all__ = [
     "ParallelDriver",
     "JoinDriver",
     "JSONValidatorDriver",
+    "TextTransformDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]

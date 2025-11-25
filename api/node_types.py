@@ -55,6 +55,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Local Ollama-powered agent node',
         'category': 'Agents',
     },
+    'huggingface': {
+        'display_name': 'Hugging Face',
+        'icon': '🤗',
+        'color': '#ff9d00',
+        'description': 'Local Hugging Face models for classification, NER, Q&A, embeddings, and more',
+        'category': 'Agents',
+    },
 
     # Control Flow
     'condition': {
@@ -106,6 +113,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'icon': '✓',
         'color': '#14b8a6',
         'description': 'Validate JSON data against a schema',
+        'category': 'Data',
+    },
+    'text_transform': {
+        'display_name': 'Text Transform',
+        'icon': '✏️',
+        'color': '#6366f1',
+        'description': 'Transform text with replace, regex, filter, split, and more',
         'category': 'Data',
     },
 }

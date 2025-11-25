@@ -23,10 +23,12 @@ import AgentNode from './nodes/AgentNode'
 import OpenAIAgentNode from './nodes/OpenAIAgentNode'
 import ClaudeAgentNode from './nodes/ClaudeAgentNode'
 import OllamaAgentNode from './nodes/OllamaAgentNode'
+import HuggingFaceNode from './nodes/HuggingFaceNode'
 import ToolNode from './nodes/ToolNode'
 import RouterNode from './nodes/RouterNode'
 import ConditionNode from './nodes/ConditionNode'
 import ValidatorNode from './nodes/ValidatorNode'
+import TextTransformNode from './nodes/TextTransformNode'
 import MemoryNode from './nodes/MemoryNode'
 import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
@@ -61,10 +63,12 @@ const nodeTypes = {
   openai_agent: OpenAIAgentNode,
   claude_agent: ClaudeAgentNode,
   ollama_agent: OllamaAgentNode,
+  huggingface: HuggingFaceNode,
   tool: ToolNode,
   router: RouterNode,
   condition: ConditionNode,
   json_validator: ValidatorNode,
+  text_transform: TextTransformNode,
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
@@ -962,6 +966,101 @@ function FlowDiagram() {
               </div>
             </>
           )}
+          {selectedNode.type === 'huggingface' && (
+            <>
+              <div className="detail-item">
+                <strong>Model:</strong>
+                <input
+                  type="text"
+                  value={(selectedNode.data as any)?.model ?? ''}
+                  onChange={(e) => {
+                    const model = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                      )
+                    )
+                    setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                  placeholder="e.g., distilbert-base-uncased-finetuned-sst-2-english"
+                />
+              </div>
+              <div className="detail-item">
+                <strong>Task:</strong>
+                <select
+                  value={(selectedNode.data as any)?.task ?? 'text-classification'}
+                  onChange={(e) => {
+                    const task = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), task } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev ? { ...prev, data: { ...(prev.data as any), task } } : prev
+                    )
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                >
+                  <option value="text-classification">Text Classification</option>
+                  <option value="sentiment-analysis">Sentiment Analysis</option>
+                  <option value="zero-shot-classification">Zero-Shot Classification</option>
+                  <option value="question-answering">Question Answering</option>
+                  <option value="ner">Named Entity Recognition (NER)</option>
+                  <option value="feature-extraction">Feature Extraction (Embeddings)</option>
+                  <option value="summarization">Summarization</option>
+                  <option value="translation">Translation</option>
+                </select>
+              </div>
+              {(selectedNode.data as any)?.task === 'zero-shot-classification' && (
+                <div className="detail-item">
+                  <strong>Candidate Labels:</strong>
+                  <input
+                    type="text"
+                    value={(selectedNode.data as any)?.candidate_labels?.join(', ') ?? ''}
+                    onChange={(e) => {
+                      const candidate_labels = e.target.value.split(',').map(s => s.trim()).filter(s => s)
+                      setNodes((nds) =>
+                        nds.map((n) =>
+                          n.id === selectedNode.id
+                            ? { ...n, data: { ...(n.data as any), candidate_labels } }
+                            : n
+                        )
+                      )
+                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), candidate_labels } } : prev))
+                    }}
+                    style={{ width: '100%', marginLeft: 6 }}
+                    placeholder="e.g., positive, negative, neutral"
+                  />
+                </div>
+              )}
+              {(selectedNode.data as any)?.task === 'question-answering' && (
+                <div className="detail-item">
+                  <strong>Question:</strong>
+                  <input
+                    type="text"
+                    value={(selectedNode.data as any)?.question ?? ''}
+                    onChange={(e) => {
+                      const question = e.target.value
+                      setNodes((nds) =>
+                        nds.map((n) =>
+                          n.id === selectedNode.id
+                            ? { ...n, data: { ...(n.data as any), question } }
+                            : n
+                        )
+                      )
+                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), question } } : prev))
+                    }}
+                    style={{ width: '100%', marginLeft: 6 }}
+                    placeholder="e.g., What is the main topic?"
+                  />
+                </div>
+              )}
+            </>
+          )}
           {selectedNode.type === 'memory' && (
             <div className="detail-item">
               <strong>Key:</strong>
@@ -1033,9 +1132,210 @@ function FlowDiagram() {
                   placeholder={(selectedNode.data as any)?.operation === 'google_search' ? 'Optional: e.g., site:example.com OR extra keywords' : 'Used for Append'}
                 />
               </div>
-              
+
             </>
           )}
+
+          {selectedNode.type === 'text_transform' && (
+            <>
+              <div className="detail-item">
+                <strong>Operation:</strong>
+                <select
+                  value={(selectedNode.data as any)?.operation ?? 'upper'}
+                  onChange={(e) => {
+                    const operation = e.target.value
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode.id
+                          ? { ...n, data: { ...(n.data as any), operation } }
+                          : n
+                      )
+                    )
+                    setSelectedNode((prev) =>
+                      prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev
+                    )
+                  }}
+                  style={{ width: '100%', marginLeft: 6 }}
+                >
+                  <option value="upper">Uppercase</option>
+                  <option value="lower">Lowercase</option>
+                  <option value="trim">Trim Whitespace</option>
+                  <option value="replace">Replace</option>
+                  <option value="regex_replace">Regex Replace</option>
+                  <option value="regex_extract">Regex Extract</option>
+                  <option value="filter_lines">Filter Lines</option>
+                  <option value="split">Split</option>
+                  <option value="join">Join Lines</option>
+                  <option value="substring">Substring</option>
+                  <option value="length">Length</option>
+                </select>
+              </div>
+
+              {(selectedNode.data as any)?.operation === 'replace' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Find:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.find ?? ''}
+                      onChange={(e) => {
+                        const find = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), find } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), find } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="Text to find"
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Replace With:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.replace_with ?? ''}
+                      onChange={(e) => {
+                        const replace_with = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), replace_with } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), replace_with } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="Replacement text"
+                    />
+                  </div>
+                </>
+              )}
+
+              {((selectedNode.data as any)?.operation === 'regex_replace' ||
+                (selectedNode.data as any)?.operation === 'regex_extract' ||
+                (selectedNode.data as any)?.operation === 'filter_lines') && (
+                <>
+                  <div className="detail-item">
+                    <strong>Pattern:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.pattern ?? ''}
+                      onChange={(e) => {
+                        const pattern = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), pattern } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), pattern } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="Regex pattern (e.g., \\d+)"
+                    />
+                  </div>
+                  {(selectedNode.data as any)?.operation === 'regex_replace' && (
+                    <div className="detail-item">
+                      <strong>Replace With:</strong>
+                      <input
+                        type="text"
+                        value={(selectedNode.data as any)?.replace_with ?? ''}
+                        onChange={(e) => {
+                          const replace_with = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id
+                                ? { ...n, data: { ...(n.data as any), replace_with } }
+                                : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), replace_with } } : prev))
+                        }}
+                        style={{ width: '100%', marginLeft: 6 }}
+                        placeholder="Replacement text"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {((selectedNode.data as any)?.operation === 'split' ||
+                (selectedNode.data as any)?.operation === 'join') && (
+                <div className="detail-item">
+                  <strong>Delimiter:</strong>
+                  <input
+                    type="text"
+                    value={(selectedNode.data as any)?.delimiter ?? ((selectedNode.data as any)?.operation === 'split' ? ',' : ' ')}
+                    onChange={(e) => {
+                      const delimiter = e.target.value
+                      setNodes((nds) =>
+                        nds.map((n) =>
+                          n.id === selectedNode.id
+                            ? { ...n, data: { ...(n.data as any), delimiter } }
+                            : n
+                        )
+                      )
+                      setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), delimiter } } : prev))
+                    }}
+                    style={{ width: '100%', marginLeft: 6 }}
+                    placeholder={(selectedNode.data as any)?.operation === 'split' ? 'e.g., ,' : 'e.g., space'}
+                  />
+                </div>
+              )}
+
+              {(selectedNode.data as any)?.operation === 'substring' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Start:</strong>
+                    <input
+                      type="number"
+                      value={(selectedNode.data as any)?.start ?? 0}
+                      onChange={(e) => {
+                        const start = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), start } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), start } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="Start index"
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>End (optional):</strong>
+                    <input
+                      type="number"
+                      value={(selectedNode.data as any)?.end ?? ''}
+                      onChange={(e) => {
+                        const end = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), end } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), end } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="End index (leave empty for end of string)"
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
           <div className="detail-item">
             <strong>Test Input:</strong>
             <input
