@@ -45,3 +45,27 @@ class Workflow(models.Model):
         """Generate a new API key for this workflow."""
         self.api_key = f"wf_{secrets.token_urlsafe(32)}"
         return self.api_key
+
+
+class WorkflowExecution(models.Model):
+    """Record of a workflow execution."""
+    workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='executions')
+    execution_id = models.CharField(max_length=64, unique=True, db_index=True)
+    input_data = models.TextField()
+    final_output = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, default='running')  # running/completed/error
+    trace = models.JSONField(default=list)
+    error_message = models.TextField(blank=True, default='')
+    execution_time = models.FloatField(null=True, blank=True)  # seconds
+    triggered_by = models.CharField(max_length=20, default='manual')  # manual/api/scheduled
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['workflow', '-created_at']),
+            models.Index(fields=['execution_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.workflow.name} - {self.execution_id[:8]} - {self.status}"

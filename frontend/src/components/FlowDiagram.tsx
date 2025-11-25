@@ -99,6 +99,10 @@ function FlowDiagram() {
   const [running, setRunning] = useState(false)
   const [viewMode, setViewMode] = useState<'log' | 'json'>('log')
   const [showTriggersModal, setShowTriggersModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [executionHistory, setExecutionHistory] = useState<any[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedExecution, setSelectedExecution] = useState<any | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [consoleHeight, setConsoleHeight] = useState(240)
   const [isResizing, setIsResizing] = useState(false)
@@ -399,6 +403,26 @@ function FlowDiagram() {
     showToast(`${label} copied to clipboard`, 'success')
   }
 
+  const loadExecutionHistory = async () => {
+    if (!currentWorkflow) return
+
+    setHistoryLoading(true)
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/workflows/${currentWorkflow.id}/executions/?limit=50`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setExecutionHistory(data.results)
+      }
+    } catch (error) {
+      console.error('Error loading execution history:', error)
+      showToast('Error loading execution history', 'error')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   const addNode = (nodeType: NodeTypeData) => {
     // Better positioning: arrange nodes in a grid pattern to prevent overlap
     const gridCols = 3
@@ -566,7 +590,8 @@ function FlowDiagram() {
       {
         input: workflowInput,
       },
-      startNodeId
+      startNodeId,
+      currentWorkflow?.id
     )
   }
 
@@ -643,6 +668,17 @@ function FlowDiagram() {
             title={currentWorkflow ? 'Configure API triggers' : 'Save workflow first'}
           >
             ⚡ Triggers
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              setShowHistoryModal(true)
+              loadExecutionHistory()
+            }}
+            disabled={!currentWorkflow}
+            title={currentWorkflow ? 'View execution history' : 'Save workflow first'}
+          >
+            📊 History
           </button>
           <button className="btn-secondary" onClick={createNewWorkflow}>
             New Workflow
@@ -1615,6 +1651,309 @@ function FlowDiagram() {
 
             <div style={{ textAlign: 'right' }}>
               <button className="btn-primary" onClick={() => setShowTriggersModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistoryModal && currentWorkflow && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => {
+            setShowHistoryModal(false)
+            setSelectedExecution(null)
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card-bg)',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '900px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 8px 32px var(--shadow-lg)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+              📊 Execution History
+            </h2>
+
+            {historyLoading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                Loading history...
+              </div>
+            ) : executionHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                No executions yet. Trigger your workflow via API to see history here.
+              </div>
+            ) : selectedExecution ? (
+              <div>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setSelectedExecution(null)}
+                  style={{ marginBottom: '1rem' }}
+                >
+                  ← Back to List
+                </button>
+                <div
+                  style={{
+                    padding: '1rem',
+                    background: 'var(--bg-tertiary)',
+                    borderRadius: '8px',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Status:</strong>{' '}
+                    <span
+                      style={{
+                        color:
+                          selectedExecution.status === 'completed'
+                            ? '#10b981'
+                            : selectedExecution.status === 'error'
+                            ? '#ef4444'
+                            : '#f59e0b',
+                      }}
+                    >
+                      {selectedExecution.status === 'completed' && '✓ '}
+                      {selectedExecution.status === 'error' && '✗ '}
+                      {selectedExecution.status}
+                    </span>
+                  </div>
+                  <div style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                    <strong>Time:</strong> {new Date(selectedExecution.created_at).toLocaleString()}
+                  </div>
+                  {selectedExecution.execution_time && (
+                    <div style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                      <strong>Duration:</strong> {selectedExecution.execution_time.toFixed(2)}s
+                    </div>
+                  )}
+                  <div style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                    <strong>Triggered by:</strong> {selectedExecution.triggered_by}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                    Input:
+                  </strong>
+                  <pre
+                    style={{
+                      padding: '0.75rem',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      overflow: 'auto',
+                      color: 'var(--text-primary)',
+                      margin: 0,
+                    }}
+                  >
+                    {selectedExecution.input_data}
+                  </pre>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                    Output:
+                  </strong>
+                  <pre
+                    style={{
+                      padding: '0.75rem',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      overflow: 'auto',
+                      color: 'var(--text-primary)',
+                      margin: 0,
+                    }}
+                  >
+                    {selectedExecution.final_output || 'No output'}
+                  </pre>
+                </div>
+
+                {selectedExecution.error_message && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ color: '#ef4444', display: 'block', marginBottom: '0.5rem' }}>
+                      Error:
+                    </strong>
+                    <pre
+                      style={{
+                        padding: '0.75rem',
+                        background: '#fee2e2',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        overflow: 'auto',
+                        color: '#991b1b',
+                        margin: 0,
+                      }}
+                    >
+                      {selectedExecution.error_message}
+                    </pre>
+                  </div>
+                )}
+
+                {selectedExecution.trace && selectedExecution.trace.length > 0 && (
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                      Execution Trace ({selectedExecution.trace.length} steps):
+                    </strong>
+                    <pre
+                      style={{
+                        padding: '0.75rem',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        overflow: 'auto',
+                        color: 'var(--text-primary)',
+                        margin: 0,
+                        maxHeight: '300px',
+                      }}
+                    >
+                      {JSON.stringify(selectedExecution.trace, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <table
+                  style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                  }}
+                >
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-primary)' }}>
+                        Time
+                      </th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-primary)' }}>
+                        Status
+                      </th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-primary)' }}>
+                        Input
+                      </th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-primary)' }}>
+                        Output
+                      </th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-primary)' }}>
+                        Duration
+                      </th>
+                      <th style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-primary)' }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {executionHistory.map((execution) => (
+                      <tr
+                        key={execution.id}
+                        style={{
+                          borderBottom: '1px solid var(--border-color)',
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: '0.75rem',
+                            fontSize: '0.85rem',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {new Date(execution.created_at).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.85rem',
+                              color:
+                                execution.status === 'completed'
+                                  ? '#10b981'
+                                  : execution.status === 'error'
+                                  ? '#ef4444'
+                                  : '#f59e0b',
+                            }}
+                          >
+                            {execution.status === 'completed' && '✓'}
+                            {execution.status === 'error' && '✗'}
+                            {execution.status === 'running' && '⏳'}
+                          </span>
+                        </td>
+                        <td
+                          style={{
+                            padding: '0.75rem',
+                            maxWidth: '200px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: '0.85rem',
+                            color: 'var(--text-secondary)',
+                          }}
+                        >
+                          {execution.input_data}
+                        </td>
+                        <td
+                          style={{
+                            padding: '0.75rem',
+                            maxWidth: '200px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: '0.85rem',
+                            color: 'var(--text-secondary)',
+                          }}
+                        >
+                          {execution.final_output || '-'}
+                        </td>
+                        <td
+                          style={{
+                            padding: '0.75rem',
+                            fontSize: '0.85rem',
+                            color: 'var(--text-secondary)',
+                          }}
+                        >
+                          {execution.execution_time ? `${execution.execution_time.toFixed(2)}s` : '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => setSelectedExecution(execution)}
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ textAlign: 'right', marginTop: '1.5rem' }}>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setShowHistoryModal(false)
+                  setSelectedExecution(null)
+                }}
+              >
                 Close
               </button>
             </div>

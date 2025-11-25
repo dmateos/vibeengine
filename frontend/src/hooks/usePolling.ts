@@ -14,7 +14,7 @@ interface ExecutionState {
 
 interface UsePollingReturn {
   state: ExecutionState;
-  startExecution: (nodes: any[], edges: any[], context?: any, startNodeId?: string) => Promise<void>;
+  startExecution: (nodes: any[], edges: any[], context?: any, startNodeId?: string, workflowId?: number) => Promise<void>;
   stopPolling: () => void;
   isPolling: boolean;
 }
@@ -120,7 +120,8 @@ export function usePolling(): UsePollingReturn {
     nodes: any[],
     edges: any[],
     context?: any,
-    startNodeId?: string
+    startNodeId?: string,
+    workflowId?: number
   ) => {
     try {
       setState({
@@ -144,6 +145,7 @@ export function usePolling(): UsePollingReturn {
           edges,
           context,
           startNodeId,
+          workflowId,
         }),
       });
 

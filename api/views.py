@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets
-from .models import Workflow
+from .models import Workflow, WorkflowExecution
 from .serializers import WorkflowSerializer
 from rest_framework import status
 from .drivers import execute_node_by_type
@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from django.core.cache import cache
 import threading
 import uuid
+import time
 
 
 @api_view(['GET'])
@@ -124,7 +125,8 @@ def execute_workflow_async(request):
       "nodes": [ ... reactflow nodes ... ],
       "edges": [ ... reactflow edges ... ],
       "context": { "input": "...", "params": {...}, "condition": bool, "state": {...} },
-      "startNodeId": "optional-node-id"
+      "startNodeId": "optional-node-id",
+      "workflowId": 123  // optional, for saving execution history
     }
 
     Returns:
@@ -138,6 +140,7 @@ def execute_workflow_async(request):
     edges: List[Dict[str, Any]] = payload.get('edges') or []
     context: Dict[str, Any] = payload.get('context') or {}
     start_node_id = payload.get('startNodeId')
+    workflow_id = payload.get('workflowId')
 
     if not nodes:
         return Response(
@@ -148,11 +151,44 @@ def execute_workflow_async(request):
     # Generate unique execution ID
     execution_id = str(uuid.uuid4())
 
+    # Create execution record if workflow_id is provided
+    execution_record = None
+    if workflow_id:
+        try:
+            workflow = Workflow.objects.get(id=workflow_id)
+            input_data = context.get('input', '')
+            execution_record = WorkflowExecution.objects.create(
+                workflow=workflow,
+                execution_id=execution_id,
+                input_data=str(input_data),
+                status='running',
+                triggered_by='manual'
+            )
+        except Workflow.DoesNotExist:
+            pass  # Continue without saving history if workflow not found
+
     # Define background execution function
     def execute_in_background():
+        start_time = time.time()
         try:
             executor = PollingExecutor(execution_id=execution_id)
             executor.execute(nodes, edges, context, start_node_id)
+
+            # Wait for executor to finish and update cache
+            time.sleep(0.5)
+
+            # Get final result from cache and update execution record
+            if execution_record:
+                execution_state = cache.get(f'execution_{execution_id}')
+                if execution_state:
+                    execution_time = time.time() - start_time
+                    execution_record.status = execution_state.get('status', 'completed')
+                    execution_record.final_output = str(execution_state.get('final', ''))
+                    execution_record.trace = execution_state.get('trace', [])
+                    error_msg = execution_state.get('error')
+                    execution_record.error_message = error_msg if error_msg else ''
+                    execution_record.execution_time = execution_time
+                    execution_record.save()
         except Exception as e:
             # Update cache with error
             cache.set(f'execution_{execution_id}', {
@@ -163,6 +199,14 @@ def execute_workflow_async(request):
                 'errorNodes': [],
                 'trace': []
             }, timeout=300)
+
+            # Update execution record
+            if execution_record:
+                execution_time = time.time() - start_time
+                execution_record.status = 'error'
+                execution_record.error_message = str(e)
+                execution_record.execution_time = execution_time
+                execution_record.save()
 
     # Start background thread
     thread = threading.Thread(target=execute_in_background, daemon=True)
@@ -271,12 +315,39 @@ def trigger_workflow(request, workflow_id):
     # Generate unique execution ID
     execution_id = str(uuid.uuid4())
 
+    # Create execution record
+    execution_record = WorkflowExecution.objects.create(
+        workflow=workflow,
+        execution_id=execution_id,
+        input_data=str(input_data),
+        status='running',
+        triggered_by='api'
+    )
+
     # Execute workflow in background
     def execute_in_background():
+        start_time = time.time()
         try:
             executor = PollingExecutor(execution_id=execution_id)
             executor.execute(nodes, edges, context, start_node_id=None)
+
+            # Wait a bit for the executor to finish and update cache
+            import time as time_module
+            time_module.sleep(0.5)
+
+            # Get final result from cache
+            execution_state = cache.get(f'execution_{execution_id}')
+            if execution_state:
+                execution_time = time.time() - start_time
+                execution_record.status = execution_state.get('status', 'completed')
+                execution_record.final_output = str(execution_state.get('final', ''))
+                execution_record.trace = execution_state.get('trace', [])
+                error_msg = execution_state.get('error')
+                execution_record.error_message = error_msg if error_msg else ''
+                execution_record.execution_time = execution_time
+                execution_record.save()
         except Exception as e:
+            execution_time = time.time() - start_time
             cache.set(f'execution_{execution_id}', {
                 'status': 'error',
                 'error': str(e),
@@ -285,6 +356,12 @@ def trigger_workflow(request, workflow_id):
                 'errorNodes': [],
                 'trace': []
             }, timeout=300)
+
+            # Update execution record
+            execution_record.status = 'error'
+            execution_record.error_message = str(e)
+            execution_record.execution_time = execution_time
+            execution_record.save()
 
     # Start background thread
     thread = threading.Thread(target=execute_in_background, daemon=True)
@@ -320,4 +397,70 @@ def regenerate_api_key(request, workflow_id):
 
     return Response({
         "api_key": workflow.api_key
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def workflow_executions(request, workflow_id):
+    """
+    Get execution history for a workflow.
+
+    Query parameters:
+    - limit: Number of executions to return (default: 50, max: 100)
+    - offset: Offset for pagination (default: 0)
+
+    Returns:
+    {
+      "count": 123,
+      "results": [
+        {
+          "id": 1,
+          "execution_id": "uuid",
+          "input_data": "...",
+          "final_output": "...",
+          "status": "completed",
+          "error_message": "",
+          "execution_time": 1.23,
+          "triggered_by": "api",
+          "created_at": "2025-11-25T21:00:00Z"
+        },
+        ...
+      ]
+    }
+    """
+    try:
+        workflow = Workflow.objects.get(id=workflow_id)
+    except Workflow.DoesNotExist:
+        return Response(
+            {"status": "error", "error": "Workflow not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Get pagination parameters
+    limit = int(request.GET.get('limit', 50))
+    offset = int(request.GET.get('offset', 0))
+    limit = min(limit, 100)  # Cap at 100
+
+    # Get executions
+    executions = workflow.executions.all()[offset:offset + limit]
+    total_count = workflow.executions.count()
+
+    results = []
+    for execution in executions:
+        results.append({
+            'id': execution.id,
+            'execution_id': execution.execution_id,
+            'input_data': execution.input_data,
+            'final_output': execution.final_output,
+            'status': execution.status,
+            'error_message': execution.error_message,
+            'execution_time': execution.execution_time,
+            'triggered_by': execution.triggered_by,
+            'created_at': execution.created_at.isoformat(),
+            'trace': execution.trace  # Include trace for detailed view
+        })
+
+    return Response({
+        'count': total_count,
+        'results': results
     }, status=status.HTTP_200_OK)

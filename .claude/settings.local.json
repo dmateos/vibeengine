@@ -14,7 +14,8 @@
       "Bash(timeout 5 npm run dev)",
       "Bash(mkdir:*)",
       "Bash(curl:*)",
-      "Bash(xargs basename:*)"
+      "Bash(xargs basename:*)",
+      "Bash(lsof:*)"
     ],
     "deny": [],
     "ask": []

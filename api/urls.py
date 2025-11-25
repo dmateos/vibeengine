@@ -13,5 +13,6 @@ urlpatterns = [
     path('execution/<str:execution_id>/status/', views.execution_status, name='execution_status'),
     path('workflows/<int:workflow_id>/trigger/', views.trigger_workflow, name='trigger_workflow'),
     path('workflows/<int:workflow_id>/regenerate-api-key/', views.regenerate_api_key, name='regenerate_api_key'),
+    path('workflows/<int:workflow_id>/executions/', views.workflow_executions, name='workflow_executions'),
     path('', include(router.urls)),
 ]
