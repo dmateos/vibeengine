@@ -106,6 +106,9 @@ function FlowDiagram() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [consoleHeight, setConsoleHeight] = useState(240)
   const [isResizing, setIsResizing] = useState(false)
+  const [nodeExecutionHistory, setNodeExecutionHistory] = useState<Record<string, any[]>>({})
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null)
+  const [nodeHistoryPanelNode, setNodeHistoryPanelNode] = useState<string | null>(null)
 
   // Polling hook for async workflow execution
   const { state: executionState, startExecution } = usePolling()
@@ -151,6 +154,8 @@ function FlowDiagram() {
         steps: executionState.steps
       })
       setRunning(false)
+      // Reload execution history to update node history
+      loadExecutionHistory()
     } else if (executionState.status === 'error') {
       setWorkflowResult({
         status: 'error',
@@ -158,6 +163,8 @@ function FlowDiagram() {
         trace: executionState.trace
       })
       setRunning(false)
+      // Reload execution history to update node history
+      loadExecutionHistory()
     } else if (executionState.status === 'running') {
       setRunning(true)
     }
@@ -167,6 +174,15 @@ function FlowDiagram() {
     loadWorkflows()
     loadNodeTypes()
   }, [])
+
+  // Load execution history when workflow changes
+  useEffect(() => {
+    if (currentWorkflow) {
+      loadExecutionHistory()
+    } else {
+      setNodeExecutionHistory({})
+    }
+  }, [currentWorkflow])
 
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
@@ -414,6 +430,29 @@ function FlowDiagram() {
       if (response.ok) {
         const data = await response.json()
         setExecutionHistory(data.results)
+
+        // Process and group execution history by nodeId
+        const nodeHistory: Record<string, any[]> = {}
+        data.results.forEach((execution: any) => {
+          if (execution.trace && Array.isArray(execution.trace)) {
+            execution.trace.forEach((step: any) => {
+              const nodeId = step.nodeId
+              if (!nodeHistory[nodeId]) {
+                nodeHistory[nodeId] = []
+              }
+              nodeHistory[nodeId].push({
+                executionId: execution.execution_id,
+                timestamp: execution.created_at,
+                status: execution.status,
+                input: step.context?.input,
+                output: step.result?.output,
+                result: step.result,
+                error: step.result?.error || execution.error_message,
+              })
+            })
+          }
+        })
+        setNodeExecutionHistory(nodeHistory)
       }
     } catch (error) {
       console.error('Error loading execution history:', error)
@@ -511,6 +550,19 @@ function FlowDiagram() {
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node)
     setExecutionResult(null)
+  }, [])
+
+  const onNodeMouseEnter = useCallback((_event: React.MouseEvent, node: Node) => {
+    setHoveredNode(node.id)
+  }, [])
+
+  const onNodeMouseLeave = useCallback(() => {
+    setHoveredNode(null)
+  }, [])
+
+  const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Double-click to show detailed history panel
+    setNodeHistoryPanelNode(node.id)
   }, [])
 
   // Handle node deletion
@@ -765,6 +817,9 @@ function FlowDiagram() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onNodeMouseEnter={onNodeMouseEnter}
+          onNodeMouseLeave={onNodeMouseLeave}
           onNodesDelete={onNodesDelete}
           onEdgesDelete={onEdgesDelete}
           nodeTypes={nodeTypes}
@@ -814,6 +869,89 @@ function FlowDiagram() {
           />
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
+
+        {/* Node Execution History Tooltip (Hover) */}
+        {hoveredNode && nodeExecutionHistory[hoveredNode] && nodeExecutionHistory[hoveredNode].length > 0 && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              right: '20px',
+              transform: 'translateY(-50%)',
+              background: 'var(--card-bg)',
+              border: '2px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '1rem',
+              maxWidth: '320px',
+              boxShadow: '0 8px 24px var(--shadow-lg)',
+              zIndex: 1000,
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+              Recent Executions ({nodeExecutionHistory[hoveredNode].slice(0, 5).length})
+            </div>
+            {nodeExecutionHistory[hoveredNode].slice(0, 5).map((exec: any, idx: number) => (
+              <div
+                key={idx}
+                style={{
+                  marginBottom: idx < 4 && idx < nodeExecutionHistory[hoveredNode].length - 1 ? '0.75rem' : 0,
+                  paddingBottom: idx < 4 && idx < nodeExecutionHistory[hoveredNode].length - 1 ? '0.75rem' : 0,
+                  borderBottom: idx < 4 && idx < nodeExecutionHistory[hoveredNode].length - 1 ? '1px solid var(--border-color)' : 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span style={{ color: exec.status === 'completed' ? '#10b981' : '#ef4444', fontSize: '0.85rem' }}>
+                    {exec.status === 'completed' ? '✓' : '✗'}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    {new Date(exec.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                {exec.input !== undefined && (
+                  <div style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>In: </span>
+                    <code
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '2px 4px',
+                        borderRadius: '3px',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      {String(exec.input).length > 40 ? String(exec.input).substring(0, 40) + '...' : String(exec.input)}
+                    </code>
+                  </div>
+                )}
+                {exec.output !== undefined && exec.output !== null && (
+                  <div style={{ fontSize: '0.8rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Out: </span>
+                    <code
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '2px 4px',
+                        borderRadius: '3px',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      {String(exec.output).length > 40 ? String(exec.output).substring(0, 40) + '...' : String(exec.output)}
+                    </code>
+                  </div>
+                )}
+                {exec.error && (
+                  <div style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem' }}>
+                    Error: {String(exec.error).substring(0, 50)}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div style={{ marginTop: '0.75rem', fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+              Double-click node for full history
+            </div>
+          </div>
+        )}
       </div>
 
       <div
@@ -1956,6 +2094,179 @@ function FlowDiagram() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Node Execution History Panel (Double-click) */}
+      {nodeHistoryPanelNode && nodeExecutionHistory[nodeHistoryPanelNode] && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setNodeHistoryPanelNode(null)}
+        >
+          <div
+            style={{
+              background: 'var(--card-bg)',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '800px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 8px 32px var(--shadow-lg)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+                Node Execution History
+              </h2>
+              <button
+                className="btn-secondary"
+                onClick={() => setNodeHistoryPanelNode(null)}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: '6px' }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Node ID:</div>
+              <code style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>{nodeHistoryPanelNode}</code>
+              <div style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Total Executions: <strong style={{ color: 'var(--text-primary)' }}>{nodeExecutionHistory[nodeHistoryPanelNode].length}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {nodeExecutionHistory[nodeHistoryPanelNode].map((exec: any, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    background: 'var(--bg-tertiary)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span
+                        style={{
+                          fontSize: '1rem',
+                          color: exec.status === 'completed' ? '#10b981' : '#ef4444',
+                        }}
+                      >
+                        {exec.status === 'completed' ? '✓' : '✗'}
+                      </span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Execution #{nodeExecutionHistory[nodeHistoryPanelNode].length - idx}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      {new Date(exec.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {exec.input !== undefined && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
+                        Input:
+                      </div>
+                      <pre
+                        style={{
+                          background: 'var(--bg-secondary)',
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          overflow: 'auto',
+                          margin: 0,
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {typeof exec.input === 'object' ? JSON.stringify(exec.input, null, 2) : String(exec.input)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {exec.output !== undefined && exec.output !== null && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
+                        Output:
+                      </div>
+                      <pre
+                        style={{
+                          background: 'var(--bg-secondary)',
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          overflow: 'auto',
+                          margin: 0,
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {typeof exec.output === 'object' ? JSON.stringify(exec.output, null, 2) : String(exec.output)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {exec.result && Object.keys(exec.result).length > 0 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
+                        Full Result:
+                      </div>
+                      <pre
+                        style={{
+                          background: 'var(--bg-secondary)',
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          overflow: 'auto',
+                          margin: 0,
+                          maxHeight: '200px',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {JSON.stringify(exec.result, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {exec.error && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: '#fee2e2',
+                        borderLeft: '3px solid #ef4444',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: '#991b1b' }}>
+                        Error:
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#dc2626' }}>
+                        {String(exec.error)}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Execution ID: <code style={{ fontSize: '0.7rem' }}>{exec.executionId.substring(0, 8)}...</code>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
