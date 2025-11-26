@@ -6,6 +6,13 @@ router = DefaultRouter()
 router.register(r'workflows', views.WorkflowViewSet, basename='workflow')
 
 urlpatterns = [
+    # Authentication endpoints
+    path('auth/register/', views.register_user, name='register_user'),
+    path('auth/login/', views.login_user, name='login_user'),
+    path('auth/logout/', views.logout_user, name='logout_user'),
+    path('auth/user/', views.current_user, name='current_user'),
+
+    # Node and workflow endpoints
     path('node-types/', views.node_types_list, name='node_types_list'),
     path('execute-node/', views.execute_node, name='execute_node'),
     path('execute-workflow/', views.execute_workflow, name='execute_workflow'),

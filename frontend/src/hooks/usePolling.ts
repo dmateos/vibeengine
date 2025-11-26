@@ -14,7 +14,7 @@ interface ExecutionState {
 
 interface UsePollingReturn {
   state: ExecutionState;
-  startExecution: (nodes: any[], edges: any[], context?: any, startNodeId?: string, workflowId?: number) => Promise<void>;
+  startExecution: (nodes: any[], edges: any[], context?: any, startNodeId?: string, workflowId?: number, token?: string | null) => Promise<void>;
   stopPolling: () => void;
   isPolling: boolean;
 }
@@ -39,9 +39,14 @@ export function usePolling(): UsePollingReturn {
   const executionIdRef = useRef<string | null>(null);
 
   // Poll for execution status
-  const pollStatus = useCallback(async (executionId: string) => {
+  const pollStatus = useCallback(async (executionId: string, token?: string | null) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/execution/${executionId}/status/`);
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Token ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/execution/${executionId}/status/`, { headers });
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -87,7 +92,7 @@ export function usePolling(): UsePollingReturn {
   }, []);
 
   // Start polling
-  const startPolling = useCallback((executionId: string) => {
+  const startPolling = useCallback((executionId: string, token?: string | null) => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
@@ -95,7 +100,7 @@ export function usePolling(): UsePollingReturn {
     setIsPolling(true);
 
     intervalRef.current = setInterval(async () => {
-      const shouldContinue = await pollStatus(executionId);
+      const shouldContinue = await pollStatus(executionId, token);
 
       if (!shouldContinue) {
         stopPolling();
@@ -103,7 +108,7 @@ export function usePolling(): UsePollingReturn {
     }, POLL_INTERVAL);
 
     // Poll immediately
-    pollStatus(executionId);
+    pollStatus(executionId, token);
   }, [pollStatus]);
 
   // Stop polling
@@ -121,7 +126,8 @@ export function usePolling(): UsePollingReturn {
     edges: any[],
     context?: any,
     startNodeId?: string,
-    workflowId?: number
+    workflowId?: number,
+    token?: string | null
   ) => {
     try {
       setState({
@@ -135,11 +141,16 @@ export function usePolling(): UsePollingReturn {
         error: null,
       });
 
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Token ${token}`;
+      }
+
       const response = await fetch(`${API_BASE_URL}/execute-workflow-async/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           nodes,
           edges,
@@ -158,7 +169,7 @@ export function usePolling(): UsePollingReturn {
       executionIdRef.current = data.executionId;
 
       // Start polling for status
-      startPolling(data.executionId);
+      startPolling(data.executionId, token);
     } catch (error) {
       console.error('Error starting execution:', error);
       setState(prev => ({

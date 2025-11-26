@@ -2,10 +2,15 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import FlowDiagram from './components/FlowDiagram'
 import HomePage from './components/HomePage'
+import Login from './components/Login'
+import Signup from './components/Signup'
+import { useAuth } from './contexts/AuthContext'
 
-type Page = 'home' | 'flow'
+type Page = 'home' | 'flow' | 'login' | 'signup'
 
 function App() {
+  const { user, logout, isAuthenticated } = useAuth()
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('darkMode')
     return saved ? JSON.parse(saved) : false
@@ -27,7 +32,28 @@ function App() {
   }
 
   const navigateToFlow = () => {
+    if (!isAuthenticated) {
+      navigateToLogin()
+      return
+    }
     setCurrentPage('flow')
+  }
+
+  const navigateToLogin = () => {
+    setCurrentPage('login')
+  }
+
+  const navigateToSignup = () => {
+    setCurrentPage('signup')
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigateToHome()
+  }
+
+  const handleAuthSuccess = () => {
+    navigateToHome()
   }
 
   return (
@@ -49,6 +75,27 @@ function App() {
                 Home
               </button>
             )}
+            {isAuthenticated ? (
+              <>
+                <span style={{ color: 'var(--text-secondary)', marginRight: '1rem', fontSize: '0.9rem' }}>
+                  {user?.username}
+                </span>
+                <button className="nav-button" onClick={handleLogout}>
+                  Logout
+                </button>
+              </>
+            ) : (
+              currentPage !== 'login' && currentPage !== 'signup' && (
+                <>
+                  <button className="nav-button" onClick={navigateToLogin}>
+                    Login
+                  </button>
+                  <button className="nav-button" onClick={navigateToSignup}>
+                    Sign Up
+                  </button>
+                </>
+              )
+            )}
             <button className="theme-toggle" onClick={toggleDarkMode} title="Toggle dark mode">
               {darkMode ? '☀️' : '🌙'}
             </button>
@@ -59,11 +106,19 @@ function App() {
       <main className={`main-content ${currentPage === 'flow' ? 'has-workflow' : ''}`}>
         {currentPage === 'home' ? (
           <HomePage onNavigateToFlow={navigateToFlow} />
-        ) : (
-          <div className="workflow-container">
-            <FlowDiagram />
-          </div>
-        )}
+        ) : currentPage === 'flow' ? (
+          isAuthenticated ? (
+            <div className="workflow-container">
+              <FlowDiagram />
+            </div>
+          ) : (
+            <Login onSwitchToSignup={navigateToSignup} onSuccess={() => { handleAuthSuccess(); navigateToFlow(); }} />
+          )
+        ) : currentPage === 'login' ? (
+          <Login onSwitchToSignup={navigateToSignup} onSuccess={handleAuthSuccess} />
+        ) : currentPage === 'signup' ? (
+          <Signup onSwitchToLogin={navigateToLogin} onSuccess={handleAuthSuccess} />
+        ) : null}
       </main>
     </div>
   )

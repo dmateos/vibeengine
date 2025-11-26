@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 import secrets
 
 
@@ -28,6 +29,7 @@ class MemoryEntry(models.Model):
 class Workflow(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workflows')
     nodes = models.JSONField(default=list)
     edges = models.JSONField(default=list)
     api_enabled = models.BooleanField(default=False)

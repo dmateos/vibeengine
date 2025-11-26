@@ -33,6 +33,7 @@ import MemoryNode from './nodes/MemoryNode'
 import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
 import { usePolling } from '../hooks/usePolling'
+import { useAuth } from '../contexts/AuthContext'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
@@ -113,6 +114,21 @@ function FlowDiagram() {
 
   // Polling hook for async workflow execution
   const { state: executionState, startExecution} = usePolling()
+
+  // Auth hook for getting user token
+  const { token } = useAuth()
+
+  // Helper function to generate auth headers
+  const getAuthHeaders = useCallback((includeContentType = false) => {
+    const headers: HeadersInit = {}
+    if (token) {
+      headers['Authorization'] = `Token ${token}`
+    }
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json'
+    }
+    return headers
+  }, [token])
 
   // Update node classes based on execution state
   useEffect(() => {
@@ -225,7 +241,9 @@ function FlowDiagram() {
 
   const loadNodeTypes = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/node-types/`)
+      const response = await fetch(`${API_BASE_URL}/node-types/`, {
+        headers: getAuthHeaders()
+      })
       const data = await response.json()
       setNodeTypeOptions(data)
     } catch (error) {
@@ -236,7 +254,9 @@ function FlowDiagram() {
   const loadWorkflows = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${API_BASE_URL}/workflows/`)
+      const response = await fetch(`${API_BASE_URL}/workflows/`, {
+        headers: getAuthHeaders()
+      })
       const data = await response.json()
       setWorkflows(data)
       setLoading(false)
@@ -300,13 +320,13 @@ function FlowDiagram() {
       if (currentWorkflow) {
         response = await fetch(`${API_BASE_URL}/workflows/${currentWorkflow.id}/`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(true),
           body: JSON.stringify(workflowData),
         })
       } else {
         response = await fetch(`${API_BASE_URL}/workflows/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(true),
           body: JSON.stringify(workflowData),
         })
       }
@@ -343,6 +363,7 @@ function FlowDiagram() {
     try {
       await fetch(`${API_BASE_URL}/workflows/${id}/`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       })
       await loadWorkflows()
       if (currentWorkflow?.id === id) {
@@ -367,9 +388,7 @@ function FlowDiagram() {
     try {
       const response = await fetch(`${API_BASE_URL}/workflows/${currentWorkflow.id}/`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(true),
         body: JSON.stringify({
           api_enabled: !currentWorkflow.api_enabled,
         }),
@@ -398,6 +417,7 @@ function FlowDiagram() {
         `${API_BASE_URL}/workflows/${currentWorkflow.id}/regenerate-api-key/`,
         {
           method: 'POST',
+          headers: getAuthHeaders(),
         }
       )
 
@@ -426,7 +446,10 @@ function FlowDiagram() {
     setHistoryLoading(true)
     try {
       const response = await fetch(
-        `${API_BASE_URL}/workflows/${currentWorkflow.id}/executions/?limit=50`
+        `${API_BASE_URL}/workflows/${currentWorkflow.id}/executions/?limit=50`,
+        {
+          headers: getAuthHeaders()
+        }
       )
       if (response.ok) {
         const data = await response.json()
@@ -612,7 +635,7 @@ function FlowDiagram() {
     try {
       const response = await fetch(`${API_BASE_URL}/execute-node/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify({
           node: selectedNode,
           context: {
@@ -646,7 +669,8 @@ function FlowDiagram() {
         input: workflowInput,
       },
       startNodeId,
-      currentWorkflow?.id
+      currentWorkflow?.id,
+      token
     )
   }
 

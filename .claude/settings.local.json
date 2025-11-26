@@ -16,7 +16,9 @@
       "Bash(curl:*)",
       "Bash(xargs basename:*)",
       "Bash(lsof:*)",
-      "Bash(/tmp/node_configs.txt)"
+      "Bash(/tmp/node_configs.txt)",
+      "Bash(pip freeze:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

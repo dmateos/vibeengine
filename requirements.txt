@@ -1,0 +1,17 @@
+# Core Django dependencies
+Django==5.2.8
+djangorestframework==3.16.1
+django-cors-headers==4.9.0
+
+# API integrations
+requests==2.32.5
+
+# AI/ML dependencies
+transformers==4.57.2
+torch==2.9.1
+huggingface-hub==0.36.0
+tokenizers==0.22.1
+safetensors==0.7.0
+
+# Utilities
+PyYAML==6.0.3
