@@ -99,6 +99,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Invokes an external capability/tool',
         'category': 'Agents',
     },
+    'mcp_tool': {
+        'display_name': 'MCP Tool',
+        'icon': '🔌',
+        'color': '#6366f1',
+        'description': 'Connect to MCP servers and execute their tools',
+        'category': 'Agents',
+    },
     'memory': {
         'display_name': 'Memory',
         'icon': '🧠',

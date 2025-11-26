@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import {
   ReactFlow,
   MiniMap,
@@ -25,6 +25,7 @@ import ClaudeAgentNode from './nodes/ClaudeAgentNode'
 import OllamaAgentNode from './nodes/OllamaAgentNode'
 import HuggingFaceNode from './nodes/HuggingFaceNode'
 import ToolNode from './nodes/ToolNode'
+import MCPToolNode from './nodes/MCPToolNode'
 import RouterNode from './nodes/RouterNode'
 import ConditionNode from './nodes/ConditionNode'
 import ValidatorNode from './nodes/ValidatorNode'
@@ -67,6 +68,7 @@ const nodeTypes = {
   ollama_agent: OllamaAgentNode,
   huggingface: HuggingFaceNode,
   tool: ToolNode,
+  mcp_tool: MCPToolNode,
   router: RouterNode,
   condition: ConditionNode,
   json_validator: ValidatorNode,
@@ -104,12 +106,20 @@ function FlowDiagram() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [selectedExecution, setSelectedExecution] = useState<any | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
-  const [consoleHeight, setConsoleHeight] = useState(240)
-  const [isResizing, setIsResizing] = useState(false)
   const [nodeExecutionHistory, setNodeExecutionHistory] = useState<Record<string, any[]>>({})
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
   const [nodeHistoryPanelNode, setNodeHistoryPanelNode] = useState<string | null>(null)
-  const [sidebarTab, setSidebarTab] = useState<'output' | 'node' | 'history'>('output')
+  const [sidebarTab, setSidebarTab] = useState<'node' | 'history'>('node')
+  const [showOutputPanel, setShowOutputPanel] = useState(true)
+  const [outputPanelHeight, setOutputPanelHeight] = useState(240)
+  const [isResizingOutput, setIsResizingOutput] = useState(false)
+
+  // Use ref to track previous non-node tab to avoid stale closures
+  const previousTabRef = useRef<'history'>('history')
+
+  // Track last clicked node to prevent duplicate rapid clicks
+  const lastClickedNodeRef = useRef<string | null>(null)
+  const lastClickTimeRef = useRef<number>(0)
 
   // Polling hook for async workflow execution
   const { state: executionState, startExecution} = usePolling()
@@ -162,26 +172,38 @@ function FlowDiagram() {
 
   // Update workflow result when execution completes
   useEffect(() => {
+    console.log('[Tab Debug] Execution state changed:', executionState.status)
     if (executionState.status === 'completed') {
-      setWorkflowResult({
+      const result = {
         status: 'ok',
         final: executionState.final,
         trace: executionState.trace,
         steps: executionState.steps
-      })
+      }
+      console.log('[Tab Debug] Workflow completed, setting result:', result)
+      setWorkflowResult(result)
       setRunning(false)
+      // Show output panel to display results
+      console.log('[Tab Debug] Showing output panel for results')
+      setShowOutputPanel(true)
       // Reload execution history to update node history
       loadExecutionHistory()
     } else if (executionState.status === 'error') {
-      setWorkflowResult({
+      const result = {
         status: 'error',
         error: executionState.error,
         trace: executionState.trace
-      })
+      }
+      console.log('[Tab Debug] Workflow error, setting result:', result)
+      setWorkflowResult(result)
       setRunning(false)
+      // Show output panel to display error
+      console.log('[Tab Debug] Showing output panel for error')
+      setShowOutputPanel(true)
       // Reload execution history to update node history
       loadExecutionHistory()
     } else if (executionState.status === 'running') {
+      console.log('[Tab Debug] Workflow running')
       setRunning(true)
     }
   }, [executionState])
@@ -190,6 +212,11 @@ function FlowDiagram() {
     loadWorkflows()
     loadNodeTypes()
   }, [])
+
+  // Debug: Log when workflowResult changes
+  useEffect(() => {
+    console.log('[Tab Debug] workflowResult changed:', workflowResult)
+  }, [workflowResult])
 
   // Load execution history when workflow changes
   useEffect(() => {
@@ -208,17 +235,17 @@ function FlowDiagram() {
     }
   }, [toast])
 
-  // Handle console resize
+  // Handle output panel resize
   useEffect(() => {
-    if (!isResizing) return
+    if (!isResizingOutput) return
 
     const handleMouseMove = (e: MouseEvent) => {
       const newHeight = window.innerHeight - e.clientY
-      setConsoleHeight(Math.max(150, Math.min(600, newHeight)))
+      setOutputPanelHeight(Math.max(150, Math.min(600, newHeight)))
     }
 
     const handleMouseUp = () => {
-      setIsResizing(false)
+      setIsResizingOutput(false)
     }
 
     document.addEventListener('mousemove', handleMouseMove)
@@ -228,14 +255,10 @@ function FlowDiagram() {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isResizing])
+  }, [isResizingOutput])
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type })
-  }
-
-  const startResize = () => {
-    setIsResizing(true)
   }
 
   const loadNodeTypes = async () => {
@@ -571,10 +594,37 @@ function FlowDiagram() {
   )
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    const now = Date.now()
+    const timeSinceLastClick = now - lastClickTimeRef.current
+
+    // Prevent duplicate clicks within 100ms
+    if (lastClickedNodeRef.current === node.id && timeSinceLastClick < 100) {
+      console.log('[Tab Debug] Ignoring duplicate click within 100ms')
+      return
+    }
+
+    lastClickedNodeRef.current = node.id
+    lastClickTimeRef.current = now
+
+    console.log('[Tab Debug] Node clicked:', node.id, 'current tab:', sidebarTab)
     setSelectedNode(node)
     setExecutionResult(null)
-    setSidebarTab('node')
-  }, [])
+
+    // Smart tab switching:
+    // - If on History tab, stay on History (to see the new node's history)
+    // - If on Node tab, stay on Node tab (to see the new node's config)
+    // - Default to Node tab
+    setSidebarTab((current) => {
+      console.log('[Tab Debug] Current tab:', current)
+      if (current === 'history') {
+        console.log('[Tab Debug] Staying on history tab for new node')
+        return 'history'
+      } else {
+        console.log('[Tab Debug] Showing node tab for new node')
+        return 'node'
+      }
+    })
+  }, [sidebarTab])
 
   const onNodeMouseEnter = useCallback((_event: React.MouseEvent, node: Node) => {
     setHoveredNode(node.id)
@@ -587,14 +637,28 @@ function FlowDiagram() {
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: Node) => {
     // Double-click to show detailed history panel
     setNodeHistoryPanelNode(node.id)
-    setSidebarTab('history')
+    setSidebarTab((current) => {
+      if (current !== 'node') {
+        previousTabRef.current = 'history'
+      }
+      return 'history'
+    })
+    previousTabRef.current = 'history'
   }, [])
+
+  const onPaneClick = useCallback(() => {
+    console.log('[Tab Debug] Canvas clicked, current tab:', sidebarTab)
+    // When clicking on canvas (not a node), just deselect node
+    setSelectedNode(null)
+  }, [sidebarTab])
 
   // Handle node deletion
   const onNodesDelete = useCallback((deleted: Node[]) => {
     const deletedIds = new Set(deleted.map(n => n.id))
     if (selectedNode && deletedIds.has(selectedNode.id)) {
       setSelectedNode(null)
+      // Restore to previous tab when selected node is deleted
+      setSidebarTab(previousTabRef.current)
     }
     // Prune edges connected to any deleted node to avoid stale edges
     setEdges((eds) => eds.filter(e => !deletedIds.has(String(e.source)) && !deletedIds.has(String(e.target))))
@@ -871,6 +935,7 @@ function FlowDiagram() {
           onNodeMouseLeave={onNodeMouseLeave}
           onNodesDelete={onNodesDelete}
           onEdgesDelete={onEdgesDelete}
+          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={{
             type: 'smoothstep',
@@ -925,21 +990,22 @@ function FlowDiagram() {
         {/* Sidebar Tabs */}
         <div className="sidebar-tabs">
           <button
-            className={`sidebar-tab ${sidebarTab === 'output' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('output')}
-          >
-            📊 Output
-          </button>
-          <button
             className={`sidebar-tab ${sidebarTab === 'node' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('node')}
+            onClick={() => {
+              console.log('[Tab Debug] Node tab clicked')
+              setSidebarTab('node')
+            }}
             disabled={!selectedNode}
           >
             ⚙️ Node
           </button>
           <button
             className={`sidebar-tab ${sidebarTab === 'history' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('history')}
+            onClick={() => {
+              console.log('[Tab Debug] History tab clicked')
+              setSidebarTab('history')
+              previousTabRef.current = 'history'
+            }}
             disabled={!hoveredNode && !selectedNode}
           >
             📜 History
@@ -948,111 +1014,6 @@ function FlowDiagram() {
 
         {/* Sidebar Content */}
         <div className="sidebar-content">
-          {/* Run Output Tab */}
-          {sidebarTab === 'output' && (
-            <div className="sidebar-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ margin: 0 }}>Run Output</h3>
-                <button
-                  className="btn-tool"
-                  onClick={() => setViewMode(viewMode === 'log' ? 'json' : 'log')}
-                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                >
-                  {viewMode === 'log' ? 'JSON' : 'Log'}
-                </button>
-              </div>
-              {workflowResult ? (
-                viewMode === 'json' ? (
-                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: '0.85rem' }}>
-                    {JSON.stringify(workflowResult, null, 2)}
-                  </pre>
-                ) : (
-                  <div>
-                    {workflowResult.status === 'error' && workflowResult.error && (
-                      <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderLeft: '3px solid #ef4444', borderRadius: 4 }}>
-                        <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>Workflow Error</div>
-                        <div style={{ color: '#dc2626', fontSize: '0.85em' }}>{workflowResult.error}</div>
-                      </div>
-                    )}
-                    <div style={{ marginBottom: 8, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      Final: <strong style={{ color: 'var(--text-primary)' }}>{String(workflowResult.final ?? '')}</strong>
-                    </div>
-                    {Array.isArray(workflowResult.trace) && workflowResult.trace.length > 0 ? (
-                      <ol style={{ paddingLeft: 18, margin: 0, fontSize: '0.9rem' }}>
-                        {workflowResult.trace.map((step: any, idx: number) => {
-                          const res = step?.result || {}
-                          const node = nodes.find(n => n.id === step.nodeId)
-                          const nodeLabel = node?.data?.label || step.nodeId
-                          const inputValue = step?.context?.input
-
-                          return (
-                            <li key={`${step.nodeId}-${idx}`} style={{ marginBottom: 10 }}>
-                              <div>
-                                <span style={{ color: 'var(--text-secondary)' }}>{idx + 1}.</span>{' '}
-                                <strong style={{ color: 'var(--text-primary)' }}>{nodeLabel}</strong>{' '}
-                                <span style={{ opacity: 0.5, fontSize: '0.85em' }}>({step.type})</span>
-                              </div>
-
-                              {inputValue !== undefined && inputValue !== null && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Input:</span>{' '}
-                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                    {typeof inputValue === 'object' ? JSON.stringify(inputValue) : String(inputValue)}
-                                  </code>
-                                </div>
-                              )}
-
-                              {res.route !== undefined && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Route:</span>{' '}
-                                  <strong style={{ color: res.route === 'yes' ? '#22c55e' : '#ef4444' }}>{String(res.route)}</strong>
-                                </div>
-                              )}
-
-                              {res.output !== undefined && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Output:</span>{' '}
-                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                    {typeof res.output === 'object' ? JSON.stringify(res.output) : String(res.output)}
-                                  </code>
-                                </div>
-                              )}
-
-                              {res.final !== undefined && res.output === undefined && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Final:</span>{' '}
-                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                    {typeof res.final === 'object' ? JSON.stringify(res.final) : String(res.final)}
-                                  </code>
-                                </div>
-                              )}
-
-                              {(res.status === 'error' || res.had_error) && res.error && (
-                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                  <span style={{ color: '#ef4444' }}>Error:</span>{' '}
-                                  <span style={{ color: '#ef4444' }}>{res.error}</span>
-                                  {res.had_error && res.status === 'ok' && (
-                                    <span style={{ marginLeft: 8, fontSize: '0.85em', opacity: 0.7 }}>(continued)</span>
-                                  )}
-                                </div>
-                              )}
-                            </li>
-                          )
-                        })}
-                      </ol>
-                    ) : (
-                      <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No steps executed.</p>
-                    )}
-                  </div>
-                )
-              ) : (
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  Run the workflow to see output and trace here.
-                </p>
-              )}
-            </div>
-          )}
-
           {/* Node Details Tab */}
           {sidebarTab === 'node' && selectedNode && (
             <div className="sidebar-panel">
@@ -1176,6 +1137,31 @@ function FlowDiagram() {
                       style={{ width: '100%', marginLeft: 6, minHeight: 80 }}
                     />
                   </div>
+
+                  {/* Ollama-specific base URL field */}
+                  {selectedNode.type === 'ollama_agent' && (
+                    <div className="detail-item">
+                      <strong>Base URL (optional):</strong>
+                      <input
+                        type="text"
+                        value={(selectedNode.data as any)?.base_url ?? ''}
+                        onChange={(e) => {
+                          const base_url = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), base_url } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), base_url } } : prev))
+                        }}
+                        style={{ width: '100%', marginLeft: 6 }}
+                        placeholder="http://localhost:11434 (default)"
+                      />
+                      <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                        Leave empty for default. Set to remote machine IP if Ollama is on another server.
+                      </small>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -1348,6 +1334,187 @@ function FlowDiagram() {
                       style={{ width: '100%', marginLeft: 6 }}
                       placeholder={(selectedNode.data as any)?.operation === 'google_search' ? 'Optional: e.g., site:example.com OR extra keywords' : 'Used for Append'}
                     />
+                  </div>
+                </>
+              )}
+
+              {/* MCP Tool Node */}
+              {selectedNode.type === 'mcp_tool' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Server Type:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.server_type ?? 'stdio'}
+                      onChange={(e) => {
+                        const server_type = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), server_type } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) =>
+                          prev ? { ...prev, data: { ...(prev.data as any), server_type } } : prev
+                        )
+                      }}
+                      style={{ marginLeft: 6 }}
+                    >
+                      <option value="stdio">Stdio (Local Command)</option>
+                      <option value="http">HTTP/SSE (Remote Server)</option>
+                    </select>
+                  </div>
+
+                  {(selectedNode.data as any)?.server_type !== 'http' && (
+                    <>
+                      <div className="detail-item">
+                        <strong>Command:</strong>
+                        <input
+                          type="text"
+                          value={(selectedNode.data as any)?.command ?? 'npx'}
+                          onChange={(e) => {
+                            const command = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id
+                                  ? { ...n, data: { ...(n.data as any), command } }
+                                  : n
+                              )
+                            )
+                            setSelectedNode((prev) =>
+                              prev ? { ...prev, data: { ...(prev.data as any), command } } : prev
+                            )
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                          placeholder="e.g., npx, python, node"
+                        />
+                      </div>
+                      <div className="detail-item">
+                        <strong>Args:</strong>
+                        <input
+                          type="text"
+                          value={(selectedNode.data as any)?.args ?? ''}
+                          onChange={(e) => {
+                            const args = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id
+                                  ? { ...n, data: { ...(n.data as any), args } }
+                                  : n
+                              )
+                            )
+                            setSelectedNode((prev) =>
+                              prev ? { ...prev, data: { ...(prev.data as any), args } } : prev
+                            )
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                          placeholder="e.g., -y @modelcontextprotocol/server-filesystem /tmp"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {(selectedNode.data as any)?.server_type === 'http' && (
+                    <>
+                      <div className="detail-item">
+                        <strong>Server URL:</strong>
+                        <input
+                          type="text"
+                          value={(selectedNode.data as any)?.server_url ?? ''}
+                          onChange={(e) => {
+                            const server_url = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id
+                                  ? { ...n, data: { ...(n.data as any), server_url } }
+                                  : n
+                              )
+                            )
+                            setSelectedNode((prev) =>
+                              prev ? { ...prev, data: { ...(prev.data as any), server_url } } : prev
+                            )
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                          placeholder="e.g., http://localhost:3000"
+                        />
+                      </div>
+                      <div className="detail-item">
+                        <strong>API Key (optional):</strong>
+                        <input
+                          type="password"
+                          value={(selectedNode.data as any)?.api_key ?? ''}
+                          onChange={(e) => {
+                            const api_key = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id
+                                  ? { ...n, data: { ...(n.data as any), api_key } }
+                                  : n
+                              )
+                            )
+                            setSelectedNode((prev) =>
+                              prev ? { ...prev, data: { ...(prev.data as any), api_key } } : prev
+                            )
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                          placeholder="Optional API key"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="detail-item">
+                    <strong>Tool Name:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.tool_name ?? ''}
+                      onChange={(e) => {
+                        const tool_name = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), tool_name } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) =>
+                          prev ? { ...prev, data: { ...(prev.data as any), tool_name } } : prev
+                        )
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="e.g., read_file, list_directory"
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Tool Params (JSON, optional):</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.tool_params_json ?? ''}
+                      onChange={(e) => {
+                        const tool_params_json = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), tool_params_json } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) =>
+                          prev ? { ...prev, data: { ...(prev.data as any), tool_params_json } } : prev
+                        )
+                      }}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace', minHeight: '80px' }}
+                      placeholder='{"path": "example.txt"}'
+                    />
+                  </div>
+
+                  <div className="detail-item" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <p style={{ margin: '0.5rem 0' }}>
+                      💡 <strong>Tip:</strong> Leave params empty to use input from previous node.
+                    </p>
+                    <p style={{ margin: '0.5rem 0' }}>
+                      📖 See <code>docs/MCP_TOOL_NODE.md</code> for examples
+                    </p>
                   </div>
                 </>
               )}
@@ -1669,8 +1836,147 @@ function FlowDiagram() {
           )}
         </div>
       </div>
-      {/* End Flow Main */}
+      {/* End flow-main */}
       </div>
+
+      {/* Bottom Output Panel - Resizable */}
+      {showOutputPanel && (
+        <>
+          <div
+            className="output-panel-resizer"
+            onMouseDown={(e) => {
+              e.preventDefault()
+              setIsResizingOutput(true)
+            }}
+            style={{
+              height: '4px',
+              background: 'var(--border-color)',
+              cursor: 'ns-resize',
+              position: 'relative',
+              zIndex: 10,
+            }}
+          />
+          <div
+            className="bottom-output-panel"
+            style={{
+              height: `${outputPanelHeight}px`,
+              background: 'var(--bg-primary)',
+              borderTop: '1px solid var(--border-color)',
+              overflow: 'auto',
+              padding: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Workflow Output</h3>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className="btn-tool"
+                  onClick={() => setViewMode(viewMode === 'log' ? 'json' : 'log')}
+                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                >
+                  {viewMode === 'log' ? 'JSON' : 'Log'}
+                </button>
+                <button
+                  className="btn-tool"
+                  onClick={() => setShowOutputPanel(false)}
+                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+            {workflowResult ? (
+              viewMode === 'json' ? (
+                <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: '0.85rem' }}>
+                  {JSON.stringify(workflowResult, null, 2)}
+                </pre>
+              ) : (
+                <div>
+                  {workflowResult.status === 'error' && workflowResult.error && (
+                    <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderLeft: '3px solid #ef4444', borderRadius: 4 }}>
+                      <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>Workflow Error</div>
+                      <div style={{ color: '#dc2626', fontSize: '0.85em' }}>{workflowResult.error}</div>
+                    </div>
+                  )}
+                  <div style={{ marginBottom: 8, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Final: <strong style={{ color: 'var(--text-primary)' }}>{String(workflowResult.final ?? '')}</strong>
+                  </div>
+                  {Array.isArray(workflowResult.trace) && workflowResult.trace.length > 0 ? (
+                    <ol style={{ paddingLeft: 18, margin: 0, fontSize: '0.9rem' }}>
+                      {workflowResult.trace.map((step: any, idx: number) => {
+                        const res = step?.result || {}
+                        const node = nodes.find(n => n.id === step.nodeId)
+                        const nodeLabel = node?.data?.label || step.nodeId
+                        const inputValue = step?.context?.input
+
+                        return (
+                          <li key={`${step.nodeId}-${idx}`} style={{ marginBottom: 10 }}>
+                            <div>
+                              <span style={{ color: 'var(--text-secondary)' }}>{idx + 1}.</span>{' '}
+                              <strong style={{ color: 'var(--text-primary)' }}>{nodeLabel}</strong>{' '}
+                              <span style={{ opacity: 0.5, fontSize: '0.85em' }}>({step.type})</span>
+                            </div>
+
+                            {inputValue !== undefined && inputValue !== null && (
+                              <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Input:</span>{' '}
+                                <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
+                                  {typeof inputValue === 'object' ? JSON.stringify(inputValue) : String(inputValue)}
+                                </code>
+                              </div>
+                            )}
+
+                            {res.route !== undefined && (
+                              <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Route:</span>{' '}
+                                <strong style={{ color: res.route === 'yes' ? '#22c55e' : '#ef4444' }}>{String(res.route)}</strong>
+                              </div>
+                            )}
+
+                            {res.output !== undefined && (
+                              <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Output:</span>{' '}
+                                <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
+                                  {typeof res.output === 'object' ? JSON.stringify(res.output) : String(res.output)}
+                                </code>
+                              </div>
+                            )}
+
+                            {res.final !== undefined && res.output === undefined && (
+                              <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Final:</span>{' '}
+                                <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
+                                  {typeof res.final === 'object' ? JSON.stringify(res.final) : String(res.final)}
+                                </code>
+                              </div>
+                            )}
+
+                            {(res.status === 'error' || res.had_error) && res.error && (
+                              <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
+                                <span style={{ color: '#ef4444' }}>Error:</span>{' '}
+                                <span style={{ color: '#ef4444' }}>{res.error}</span>
+                                {res.had_error && res.status === 'ok' && (
+                                  <span style={{ marginLeft: 8, fontSize: '0.85em', opacity: 0.7 }}>(continued)</span>
+                                )}
+                              </div>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  ) : (
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No steps executed.</p>
+                  )}
+                </div>
+              )
+            ) : (
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                Run the workflow to see output and trace here.
+              </p>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Triggers Modal */}
       {showTriggersModal && currentWorkflow && (

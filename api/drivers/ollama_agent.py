@@ -91,7 +91,8 @@ class OllamaAgentDriver(BaseAgentDriver):
         label = data.get("label", "Ollama Agent")
         knowledge = context.get("knowledge") or {}
 
-        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        # Allow base_url to be configured per-node, fallback to env var, then default
+        base_url = data.get("base_url") or os.getenv("OLLAMA_BASE_URL") or "http://localhost:11434"
         model = data.get("model") or os.getenv("OLLAMA_MODEL", "llama3.1:8b-instruct")
         temperature_val = self._get_temperature(data)
         system_prompt = self._build_system_prompt(data, knowledge)

@@ -16,12 +16,26 @@ function App() {
     return saved ? JSON.parse(saved) : false
   })
 
-  const [currentPage, setCurrentPage] = useState<Page>('home')
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    // Remember the last page on reload
+    const saved = localStorage.getItem('currentPage')
+    if (saved && (saved === 'flow' || saved === 'home')) {
+      return saved as Page
+    }
+    return 'home'
+  })
 
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode))
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
+
+  useEffect(() => {
+    // Save current page to localStorage (but not login/signup pages)
+    if (currentPage === 'flow' || currentPage === 'home') {
+      localStorage.setItem('currentPage', currentPage)
+    }
+  }, [currentPage])
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)

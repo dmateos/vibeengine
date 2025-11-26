@@ -4,6 +4,7 @@ from .openai_agent import OpenAIAgentDriver
 from .claude_agent import ClaudeAgentDriver
 from .ollama_agent import OllamaAgentDriver
 from .tool import ToolDriver
+from .mcp_tool import MCPToolDriver
 from .router import RouterDriver
 from .condition import ConditionDriver
 from .input import InputDriver
@@ -23,6 +24,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     OllamaAgentDriver.type: OllamaAgentDriver(),
     HuggingFaceDriver.type: HuggingFaceDriver(),
     ToolDriver.type: ToolDriver(),
+    MCPToolDriver.type: MCPToolDriver(),
     RouterDriver.type: RouterDriver(),
     ConditionDriver.type: ConditionDriver(),
     InputDriver.type: InputDriver(),
@@ -70,6 +72,7 @@ __all__ = [
     "OllamaAgentDriver",
     "HuggingFaceDriver",
     "ToolDriver",
+    "MCPToolDriver",
     "RouterDriver",
     "ConditionDriver",
     "InputDriver",
