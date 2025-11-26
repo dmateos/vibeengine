@@ -107,10 +107,9 @@ function FlowDiagram() {
   const [selectedExecution, setSelectedExecution] = useState<any | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [nodeExecutionHistory, setNodeExecutionHistory] = useState<Record<string, any[]>>({})
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null)
   const [nodeHistoryPanelNode, setNodeHistoryPanelNode] = useState<string | null>(null)
   const [sidebarTab, setSidebarTab] = useState<'node' | 'history'>('node')
-  const [showOutputPanel, setShowOutputPanel] = useState(true)
+  const [showOutputPanel, setShowOutputPanel] = useState(false)
   const [outputPanelHeight, setOutputPanelHeight] = useState(240)
   const [isResizingOutput, setIsResizingOutput] = useState(false)
 
@@ -626,13 +625,6 @@ function FlowDiagram() {
     })
   }, [sidebarTab])
 
-  const onNodeMouseEnter = useCallback((_event: React.MouseEvent, node: Node) => {
-    setHoveredNode(node.id)
-  }, [])
-
-  const onNodeMouseLeave = useCallback(() => {
-    setHoveredNode(null)
-  }, [])
 
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: Node) => {
     // Double-click to show detailed history panel
@@ -931,8 +923,6 @@ function FlowDiagram() {
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           onNodeDoubleClick={onNodeDoubleClick}
-          onNodeMouseEnter={onNodeMouseEnter}
-          onNodeMouseLeave={onNodeMouseLeave}
           onNodesDelete={onNodesDelete}
           onEdgesDelete={onEdgesDelete}
           onPaneClick={onPaneClick}
@@ -1006,7 +996,7 @@ function FlowDiagram() {
               setSidebarTab('history')
               previousTabRef.current = 'history'
             }}
-            disabled={!hoveredNode && !selectedNode}
+            disabled={!selectedNode}
           >
             📜 History
           </button>
@@ -1759,13 +1749,13 @@ function FlowDiagram() {
           )}
 
           {/* Node History Tab */}
-          {sidebarTab === 'history' && (hoveredNode || selectedNode) && (
+          {sidebarTab === 'history' && selectedNode && (
             <div className="sidebar-panel">
               <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
                 Node Execution History
               </h3>
               {(() => {
-                const nodeId = hoveredNode || selectedNode?.id
+                const nodeId = selectedNode?.id
                 const history = nodeId ? nodeExecutionHistory[nodeId] : null
 
                 if (!history || history.length === 0) {
