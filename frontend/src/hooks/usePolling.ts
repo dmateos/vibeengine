@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { API_BASE_URL } from '../utils/api';
 
 interface ExecutionState {
   status: 'idle' | 'starting' | 'running' | 'completed' | 'error' | 'not_found';
@@ -19,7 +20,6 @@ interface UsePollingReturn {
   isPolling: boolean;
 }
 
-const API_BASE_URL = 'http://localhost:8000/api';
 const POLL_INTERVAL = 500; // 500ms
 
 export function usePolling(): UsePollingReturn {

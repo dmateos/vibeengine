@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-vi_*zvok759ek9)r)(ctt&&)90_)6ls7(g59e((p4puk0dj%q_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["dev0.lan.mateos.cc", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -129,7 +129,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite default port
+    "http://localhost:5174",  # Vite alternate port
     "http://localhost:3000",  # Alternative React port
+    "http://dev0.lan.mateos.cc:5173",  # Production Vite port
+    "http://dev0.lan.mateos.cc:5174",  # Production Vite alternate port
+    "http://dev0.lan.mateos.cc:3000",  # Alternative production port
 ]
 
 # REST Framework settings

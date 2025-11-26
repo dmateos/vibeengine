@@ -18,7 +18,9 @@
       "Bash(lsof:*)",
       "Bash(/tmp/node_configs.txt)",
       "Bash(pip freeze:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(netstat:*)",
+      "Bash(ss:*)"
     ],
     "deny": [],
     "ask": []

@@ -34,8 +34,7 @@ import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
 import { usePolling } from '../hooks/usePolling'
 import { useAuth } from '../contexts/AuthContext'
-
-const API_BASE_URL = 'http://localhost:8000/api'
+import { API_BASE_URL } from '../utils/api'
 
 interface NodeTypeData {
   id: number
