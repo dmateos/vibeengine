@@ -92,13 +92,6 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Merge results from parallel branches',
         'category': 'Control Flow',
     },
-    'consensus': {
-        'display_name': 'Consensus',
-        'icon': '🤝',
-        'color': '#ec4899',
-        'description': 'Analyze agreement among multiple responses',
-        'category': 'Control Flow',
-    },
     'tool': {
         'display_name': 'Tool',
         'icon': '🛠️',
@@ -113,15 +106,31 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Connect to MCP servers and execute their tools',
         'category': 'Agents',
     },
+
+    # Multi-Agent
+    'consensus': {
+        'display_name': 'Consensus',
+        'icon': '🤝',
+        'color': '#ec4899',
+        'description': 'Analyze agreement among multiple responses',
+        'category': 'Multi-Agent',
+    },
+    'conversation': {
+        'display_name': 'Conversation',
+        'icon': '💬',
+        'color': '#f97316',
+        'description': 'Multi-turn dialogue between multiple agents',
+        'category': 'Multi-Agent',
+    },
+
+    # Data
     'memory': {
         'display_name': 'Memory',
         'icon': '🧠',
         'color': '#ef4444',
         'description': 'Read/write flow state',
-        'category': 'Agents',
+        'category': 'Data',
     },
-
-    # Data
     'json_validator': {
         'display_name': 'JSON Validator',
         'icon': '✓',

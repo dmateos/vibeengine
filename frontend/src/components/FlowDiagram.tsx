@@ -34,6 +34,7 @@ import MemoryNode from './nodes/MemoryNode'
 import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
 import ConsensusNode from './nodes/ConsensusNode'
+import ConversationNode from './nodes/ConversationNode'
 import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
 import { useAuth } from '../contexts/AuthContext'
@@ -79,6 +80,7 @@ const nodeTypes = {
   parallel: ParallelNode,
   join: JoinNode,
   consensus: ConsensusNode,
+  conversation: ConversationNode,
 }
 
 const initialNodes: Node[] = []
@@ -1844,6 +1846,106 @@ function FlowDiagram() {
                     <p style={{ margin: '0.5rem 0' }}>
                       💡 <strong>Tip:</strong> Connect multiple agent outputs through a Join node (list mode) before Consensus.
                     </p>
+                  </div>
+                </>
+              )}
+
+              {selectedNode.type === 'conversation' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Max Turns:</strong>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={(selectedNode.data as any)?.max_turns ?? 10}
+                      onChange={(e) => {
+                        const max_turns = parseInt(e.target.value)
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), max_turns } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), max_turns } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', marginLeft: 6 }}>
+                      Each turn = one message from each participant
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Initial Prompt:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.initial_prompt ?? ''}
+                      onChange={(e) => {
+                        const initial_prompt = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), initial_prompt } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), initial_prompt } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6, minHeight: '60px' }}
+                      placeholder="Starting topic or message..."
+                    />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', marginLeft: 6 }}>
+                      Or provide via input connection
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Participants:</strong>
+                    <div style={{ marginLeft: 6, marginTop: '0.5rem' }}>
+                      {((selectedNode.data as any)?.participants || []).map((p: any, idx: number) => (
+                        <div key={idx} style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '4px', marginBottom: '0.5rem' }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{p.role || `Participant ${idx + 1}`}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            {p.agent_type} {p.model ? `(${p.model})` : ''}
+                          </div>
+                        </div>
+                      ))}
+                      {((selectedNode.data as any)?.participants || []).length === 0 && (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                          No participants configured. Use JSON editor below.
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', marginLeft: 6 }}>
+                      💡 <strong>Tip:</strong> Configure participants in JSON format below (see Raw Data section)
+                    </div>
+                  </div>
+
+                  <div className="detail-item" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    <details>
+                      <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: '0.5rem' }}>Participant JSON Format</summary>
+                      <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '4px', fontSize: '0.75rem', overflow: 'auto' }}>
+{`{
+  "participants": [
+    {
+      "role": "Pro AI",
+      "agent_type": "claude_agent",
+      "model": "claude-3-5-sonnet-20241022",
+      "system_prompt": "You argue in favor of AI",
+      "temperature": 0.7
+    },
+    {
+      "role": "Skeptic",
+      "agent_type": "openai_agent",
+      "model": "gpt-4",
+      "system_prompt": "You are skeptical of AI",
+      "temperature": 0.7
+    }
+  ]
+}`}
+                      </pre>
+                    </details>
                   </div>
                 </>
               )}

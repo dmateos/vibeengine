@@ -1,0 +1,29 @@
+import { Handle, Position } from '@xyflow/react'
+
+interface ConversationNodeData {
+  label: string
+  icon: string
+  max_turns?: number
+  participants?: any[]
+}
+
+function ConversationNode({ data }: { data: ConversationNodeData }) {
+  const maxTurns = data.max_turns || 10
+  const participantCount = data.participants?.length || 0
+
+  return (
+    <div className="custom-node action-node">
+      <Handle type="target" position={Position.Top} id="t" />
+      <div className="node-icon">{data.icon}</div>
+      <div className="node-content">
+        <div className="node-label">{data.label}</div>
+        <div className="node-type">
+          {participantCount > 0 ? `${participantCount} agents` : 'Configure'} · {maxTurns} turns
+        </div>
+      </div>
+      <Handle type="source" position={Position.Bottom} id="s" />
+    </div>
+  )
+}
+
+export default ConversationNode
