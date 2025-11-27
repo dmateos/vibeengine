@@ -368,12 +368,6 @@ ANALYSIS: [brief explanation]"""
             elif line.startswith("ANALYSIS:"):
                 analysis = line.split(":", 1)[1].strip()
 
-        # If LLM didn't explicitly state consensus, derive from agreement rate
-        if not consensus and agreement_rate == 0:
-            # LLM didn't follow format, try to infer
-            consensus = "agree" in llm_response.lower() or "consensus" in llm_response.lower()
-            agreement_rate = 1.0 if consensus else 0.5
-
         # Final consensus check against threshold
         final_consensus = agreement_rate > threshold
 

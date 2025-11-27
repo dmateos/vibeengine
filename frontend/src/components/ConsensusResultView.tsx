@@ -19,7 +19,7 @@ function ConsensusResultView({ result }: ConsensusResultViewProps) {
 
   const agreementPercentage = Math.round(result.agreement_rate * 100)
   const totalResponses = result.responses?.length || 0
-  const agreeingCount = totalResponses - (result.disagreements?.length || 0)
+  const agreeingCount = Math.round(totalResponses * result.agreement_rate)
 
   return (
     <div className="consensus-result-view">
