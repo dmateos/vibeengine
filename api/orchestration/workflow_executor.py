@@ -131,6 +131,10 @@ class WorkflowExecutor:
                 current, ntype, context, edges, node_by_id
             )
 
+            # Add graph structure to context for nodes that need it (e.g., consensus with connected judge)
+            exec_context['_edges'] = edges
+            exec_context['_nodes'] = node_by_id
+
             # Execute node
             res = execute_node_by_type(ntype, current, exec_context)
 

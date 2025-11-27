@@ -1746,54 +1746,11 @@ function FlowDiagram() {
                   </div>
 
                   {(selectedNode.data as any)?.method === 'llm_judge' && (
-                    <>
-                      <div className="detail-item">
-                        <strong>Judge Agent:</strong>
-                        <select
-                          value={(selectedNode.data as any)?.judge_model ?? 'claude'}
-                          onChange={(e) => {
-                            const judge_model = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...(n.data as any), judge_model } }
-                                  : n
-                              )
-                            )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), judge_model } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                        >
-                          <option value="claude">Claude</option>
-                          <option value="openai">OpenAI</option>
-                          <option value="ollama">Ollama</option>
-                        </select>
-                      </div>
-
-                      <div className="detail-item">
-                        <strong>Model Name (optional):</strong>
-                        <input
-                          type="text"
-                          value={(selectedNode.data as any)?.judge_model_name ?? ''}
-                          onChange={(e) => {
-                            const judge_model_name = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...(n.data as any), judge_model_name } }
-                                  : n
-                              )
-                            )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), judge_model_name } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                          placeholder="e.g., gpt-4, claude-3-5-sonnet-20241022, llama3.1:8b"
-                        />
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', marginLeft: 6 }}>
-                          Leave empty to use agent defaults
-                        </div>
-                      </div>
-                    </>
+                    <div className="detail-item" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem', marginLeft: 6 }}>
+                      <p style={{ margin: '0.5rem 0' }}>
+                        💡 <strong>Required:</strong> Connect a judge agent node (Claude, OpenAI, or Ollama) to the left or right handle (pink) to analyze consensus.
+                      </p>
+                    </div>
                   )}
 
                   <div className="detail-item">
