@@ -33,6 +33,8 @@ import TextTransformNode from './nodes/TextTransformNode'
 import MemoryNode from './nodes/MemoryNode'
 import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
+import ConsensusNode from './nodes/ConsensusNode'
+import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
 import { useAuth } from '../contexts/AuthContext'
 import { API_BASE_URL } from '../utils/api'
@@ -76,6 +78,7 @@ const nodeTypes = {
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
+  consensus: ConsensusNode,
 }
 
 const initialNodes: Node[] = []
@@ -185,8 +188,10 @@ function FlowDiagram() {
       // Show output panel to display results
       console.log('[Tab Debug] Showing output panel for results')
       setShowOutputPanel(true)
-      // Reload execution history to update node history
-      loadExecutionHistory()
+      // Reload execution history to update node history (with delay to allow backend to save)
+      setTimeout(() => {
+        loadExecutionHistory()
+      }, 500)
     } else if (executionState.status === 'error') {
       const result = {
         status: 'error',
@@ -199,8 +204,10 @@ function FlowDiagram() {
       // Show output panel to display error
       console.log('[Tab Debug] Showing output panel for error')
       setShowOutputPanel(true)
-      // Reload execution history to update node history
-      loadExecutionHistory()
+      // Reload execution history to update node history (with delay to allow backend to save)
+      setTimeout(() => {
+        loadExecutionHistory()
+      }, 500)
     } else if (executionState.status === 'running') {
       console.log('[Tab Debug] Workflow running')
       setRunning(true)
@@ -1710,6 +1717,137 @@ function FlowDiagram() {
                 </>
               )}
 
+              {/* Consensus Node */}
+              {selectedNode.type === 'consensus' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Analysis Method:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.method ?? 'llm_judge'}
+                      onChange={(e) => {
+                        const method = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), method } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), method } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="llm_judge">LLM Judge (Smart)</option>
+                      <option value="semantic">Semantic (Fast)</option>
+                      <option value="exact">Exact Match (Strict)</option>
+                    </select>
+                  </div>
+
+                  {(selectedNode.data as any)?.method === 'llm_judge' && (
+                    <>
+                      <div className="detail-item">
+                        <strong>Judge Agent:</strong>
+                        <select
+                          value={(selectedNode.data as any)?.judge_model ?? 'claude'}
+                          onChange={(e) => {
+                            const judge_model = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id
+                                  ? { ...n, data: { ...(n.data as any), judge_model } }
+                                  : n
+                              )
+                            )
+                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), judge_model } } : prev))
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                        >
+                          <option value="claude">Claude</option>
+                          <option value="openai">OpenAI</option>
+                          <option value="ollama">Ollama</option>
+                        </select>
+                      </div>
+
+                      <div className="detail-item">
+                        <strong>Model Name (optional):</strong>
+                        <input
+                          type="text"
+                          value={(selectedNode.data as any)?.judge_model_name ?? ''}
+                          onChange={(e) => {
+                            const judge_model_name = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id
+                                  ? { ...n, data: { ...(n.data as any), judge_model_name } }
+                                  : n
+                              )
+                            )
+                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), judge_model_name } } : prev))
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                          placeholder="e.g., gpt-4, claude-3-5-sonnet-20241022, llama3.1:8b"
+                        />
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', marginLeft: 6 }}>
+                          Leave empty to use agent defaults
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="detail-item">
+                    <strong>Consensus Threshold:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.threshold ?? 'majority'}
+                      onChange={(e) => {
+                        const threshold = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), threshold } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), threshold } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="majority">Majority (50%+)</option>
+                      <option value="unanimous">Unanimous (100%)</option>
+                      <option value="0.67">2/3 Agreement (67%)</option>
+                      <option value="0.75">3/4 Agreement (75%)</option>
+                    </select>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Include All Responses:</strong>
+                    <select
+                      value={String((selectedNode.data as any)?.return_all ?? true)}
+                      onChange={(e) => {
+                        const return_all = e.target.value === 'true'
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), return_all } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), return_all } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="true">Yes (show all responses)</option>
+                      <option value="false">No (consensus only)</option>
+                    </select>
+                  </div>
+
+                  <div className="detail-item" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    <p style={{ margin: '0.5rem 0' }}>
+                      💡 <strong>Tip:</strong> Connect multiple agent outputs through a Join node (list mode) before Consensus.
+                    </p>
+                  </div>
+                </>
+              )}
+
               {/* Test Execution Section */}
               <div className="detail-item" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                 <strong>Test Input:</strong>
@@ -1799,12 +1937,18 @@ function FlowDiagram() {
                             </div>
                           )}
                           {exec.output !== undefined && exec.output !== null && (
-                            <div style={{ fontSize: '0.85rem' }}>
-                              <span style={{ color: 'var(--text-secondary)' }}>Out:</span>{' '}
-                              <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.75rem' }}>
-                                {String(exec.output).substring(0, 60)}{String(exec.output).length > 60 ? '...' : ''}
-                              </code>
-                            </div>
+                            selectedNode?.type === 'consensus' && exec.output?.consensus !== undefined ? (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <ConsensusResultView result={exec.output} />
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '0.85rem' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Out:</span>{' '}
+                                <code style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: 3, fontSize: '0.75rem' }}>
+                                  {String(exec.output).substring(0, 60)}{String(exec.output).length > 60 ? '...' : ''}
+                                </code>
+                              </div>
+                            )
                           )}
                           {exec.error && (
                             <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#ef4444' }}>
@@ -1889,7 +2033,11 @@ function FlowDiagram() {
                     </div>
                   )}
                   <div style={{ marginBottom: 8, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    Final: <strong style={{ color: 'var(--text-primary)' }}>{String(workflowResult.final ?? '')}</strong>
+                    Final: <strong style={{ color: 'var(--text-primary)' }}>
+                      {typeof workflowResult.final === 'object' && workflowResult.final !== null
+                        ? JSON.stringify(workflowResult.final)
+                        : String(workflowResult.final ?? '')}
+                    </strong>
                   </div>
                   {Array.isArray(workflowResult.trace) && workflowResult.trace.length > 0 ? (
                     <ol style={{ paddingLeft: 18, margin: 0, fontSize: '0.9rem' }}>
@@ -1924,21 +2072,33 @@ function FlowDiagram() {
                             )}
 
                             {res.output !== undefined && (
-                              <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                <span style={{ color: 'var(--text-secondary)' }}>Output:</span>{' '}
-                                <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                  {typeof res.output === 'object' ? JSON.stringify(res.output) : String(res.output)}
-                                </code>
-                              </div>
+                              step.type === 'consensus' && res.output?.consensus !== undefined ? (
+                                <div style={{ marginLeft: 12, marginTop: 8 }}>
+                                  <ConsensusResultView result={res.output} />
+                                </div>
+                              ) : (
+                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
+                                  <span style={{ color: 'var(--text-secondary)' }}>Output:</span>{' '}
+                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
+                                    {typeof res.output === 'object' ? JSON.stringify(res.output) : String(res.output)}
+                                  </code>
+                                </div>
+                              )
                             )}
 
                             {res.final !== undefined && res.output === undefined && (
-                              <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
-                                <span style={{ color: 'var(--text-secondary)' }}>Final:</span>{' '}
-                                <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
-                                  {typeof res.final === 'object' ? JSON.stringify(res.final) : String(res.final)}
-                                </code>
-                              </div>
+                              step.type === 'consensus' && res.final?.consensus !== undefined ? (
+                                <div style={{ marginLeft: 12, marginTop: 8 }}>
+                                  <ConsensusResultView result={res.final} />
+                                </div>
+                              ) : (
+                                <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
+                                  <span style={{ color: 'var(--text-secondary)' }}>Final:</span>{' '}
+                                  <code style={{ background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, fontSize: '0.8em' }}>
+                                    {typeof res.final === 'object' ? JSON.stringify(res.final) : String(res.final)}
+                                  </code>
+                                </div>
+                              )
                             )}
 
                             {(res.status === 'error' || res.had_error) && res.error && (
@@ -2548,24 +2708,38 @@ function FlowDiagram() {
                   )}
 
                   {exec.output !== undefined && exec.output !== null && (
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
-                        Output:
-                      </div>
-                      <pre
-                        style={{
-                          background: 'var(--bg-secondary)',
-                          padding: '0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.8rem',
-                          overflow: 'auto',
-                          margin: 0,
-                          color: 'var(--text-primary)',
-                        }}
-                      >
-                        {typeof exec.output === 'object' ? JSON.stringify(exec.output, null, 2) : String(exec.output)}
-                      </pre>
-                    </div>
+                    (() => {
+                      const node = nodes.find(n => n.id === nodeHistoryPanelNode)
+                      const isConsensus = node?.type === 'consensus' && exec.output?.consensus !== undefined
+
+                      return isConsensus ? (
+                        <div style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                            Output:
+                          </div>
+                          <ConsensusResultView result={exec.output} />
+                        </div>
+                      ) : (
+                        <div style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
+                            Output:
+                          </div>
+                          <pre
+                            style={{
+                              background: 'var(--bg-secondary)',
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              fontSize: '0.8rem',
+                              overflow: 'auto',
+                              margin: 0,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
+                            {typeof exec.output === 'object' ? JSON.stringify(exec.output, null, 2) : String(exec.output)}
+                          </pre>
+                        </div>
+                      )
+                    })()
                   )}
 
                   {exec.result && Object.keys(exec.result).length > 0 && (

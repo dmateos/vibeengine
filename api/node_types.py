@@ -92,6 +92,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Merge results from parallel branches',
         'category': 'Control Flow',
     },
+    'consensus': {
+        'display_name': 'Consensus',
+        'icon': '🤝',
+        'color': '#ec4899',
+        'description': 'Analyze agreement among multiple responses',
+        'category': 'Control Flow',
+    },
     'tool': {
         'display_name': 'Tool',
         'icon': '🛠️',

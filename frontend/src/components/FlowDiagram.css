@@ -1283,3 +1283,240 @@
 .text-transform-node .node-label {
   color: var(--text-primary);
 }
+
+/* Consensus Result View Styles */
+.consensus-result-view {
+  padding: 0.75rem;
+  background: var(--card-bg);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.consensus-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.consensus-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.consensus-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 2px solid;
+}
+
+.consensus-status.consensus-yes {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.08) 100%);
+  border-color: #10b981;
+}
+
+.consensus-status.consensus-no {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.08) 100%);
+  border-color: #ef4444;
+}
+
+.consensus-status-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.consensus-status-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.consensus-status.consensus-yes .consensus-status-text {
+  color: #10b981;
+}
+
+.consensus-status.consensus-no .consensus-status-text {
+  color: #ef4444;
+}
+
+.consensus-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.consensus-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.metric-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.consensus-progress-bar {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.consensus-progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.consensus-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-header {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-header-clickable {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.section-header-clickable:hover {
+  background: var(--bg-tertiary);
+}
+
+.toggle-arrow {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.consensus-answer-box {
+  padding: 0.75rem;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border-left: 3px solid #8b5cf6;
+  font-family: 'Monaco', 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.consensus-analysis {
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-size: 0.8rem;
+}
+
+.consensus-responses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.consensus-response-item {
+  padding: 0.6rem;
+  border-radius: 6px;
+  border-left: 3px solid;
+  background: var(--bg-secondary);
+}
+
+.consensus-response-agree {
+  border-color: #10b981;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+}
+
+.consensus-response-disagree {
+  border-color: #ef4444;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);
+}
+
+.response-number {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 0.35rem;
+  opacity: 0.7;
+}
+
+.consensus-response-agree .response-number {
+  color: #10b981;
+}
+
+.consensus-response-disagree .response-number {
+  color: #ef4444;
+}
+
+.response-content {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.consensus-raw-data {
+  margin-top: 0.35rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.consensus-raw-data summary {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.consensus-raw-data summary:hover {
+  background: var(--bg-tertiary);
+}
+
+.consensus-raw-data-content {
+  padding: 0.75rem;
+  margin: 0;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-color);
+  overflow-x: auto;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}

@@ -15,6 +15,7 @@ from .join import JoinDriver
 from .json_validator import JSONValidatorDriver
 from .huggingface import HuggingFaceDriver
 from .text_transform import TextTransformDriver
+from .consensus import ConsensusDriver
 
 
 # Registry of all available drivers
@@ -34,6 +35,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     JoinDriver.type: JoinDriver(),
     JSONValidatorDriver.type: JSONValidatorDriver(),
     TextTransformDriver.type: TextTransformDriver(),
+    ConsensusDriver.type: ConsensusDriver(),
 }
 
 
@@ -82,6 +84,7 @@ __all__ = [
     "JoinDriver",
     "JSONValidatorDriver",
     "TextTransformDriver",
+    "ConsensusDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]
