@@ -112,3 +112,62 @@ def execute_workflow_task(
 
         # Re-raise the exception so Celery marks the task as failed
         raise
+
+
+@shared_task(bind=True, name='api.execute_branch')
+def execute_branch_task(
+    self,
+    branch_id: str,
+    start_node: Dict[str, Any],
+    context: Dict[str, Any],
+    outgoing: Dict[str, List[Dict[str, Any]]],
+    node_by_id: Dict[str, Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+    max_steps: int = 100
+) -> Dict[str, Any]:
+    """
+    Execute a single branch in parallel execution.
+
+    Args:
+        branch_id: Unique identifier for this branch
+        start_node: Starting node for this branch
+        context: Execution context for this branch
+        outgoing: Outgoing edges map
+        node_by_id: Node lookup map
+        edges: All workflow edges
+        max_steps: Maximum steps to execute
+
+    Returns:
+        Dict with final_output and trace
+    """
+    from .orchestration.workflow_executor import WorkflowExecutor
+
+    logger.info(f"[Branch Task] Starting branch execution - ID: {branch_id}, Node: {start_node.get('id')}")
+
+    try:
+        executor = WorkflowExecutor()
+
+        # Execute the branch
+        final_output, trace = executor._execute_branch(
+            start_node, context, outgoing, node_by_id, edges, max_steps
+        )
+
+        logger.info(f"[Branch Task] Branch {branch_id} completed successfully")
+        logger.debug(f"[Branch Task] Branch {branch_id} output: {str(final_output)[:100]}...")
+
+        return {
+            'branch_id': branch_id,
+            'final_output': final_output,
+            'trace': trace,
+            'status': 'ok'
+        }
+
+    except Exception as e:
+        logger.error(f"[Branch Task] Branch {branch_id} failed: {str(e)}")
+        return {
+            'branch_id': branch_id,
+            'final_output': None,
+            'trace': [],
+            'status': 'error',
+            'error': str(e)
+        }

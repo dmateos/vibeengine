@@ -1,6 +1,11 @@
 from typing import Any, Dict, List, Optional
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from celery import group, current_task
 from ..drivers import execute_node_by_type
 from ..memory_store import store
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionResult:
@@ -467,11 +472,13 @@ class WorkflowExecutor:
                                    edges: List[Dict[str, Any]],
                                    remaining_steps: int) -> tuple:
         """
-        Execute all parallel branches from a parallel node.
+        Execute all parallel branches from a parallel node using Celery groups.
 
         Returns:
             Tuple of (results_list, trace_list)
         """
+        from ..tasks import execute_branch_task
+
         parallel_id = str(parallel_node.get('id'))
         branch_edges = outgoing.get(parallel_id, [])
 
@@ -481,11 +488,11 @@ class WorkflowExecutor:
             if node_by_id.get(str(e.get('target')), {}).get('type') not in ('memory', 'tool')
         ]
 
-        results = []
-        trace = []
+        logger.info(f"[Parallel Execution] Starting {len(branch_edges)} branches in parallel")
 
-        # Execute each branch independently
-        for edge in branch_edges:
+        # Create tasks for each branch
+        branch_tasks = []
+        for idx, edge in enumerate(branch_edges):
             branch_target_id = str(edge.get('target'))
             branch_node = node_by_id.get(branch_target_id)
 
@@ -500,13 +507,46 @@ class WorkflowExecutor:
                 'state': dict(context.get('state', {})),  # Shallow copy of state
             }
 
-            # Execute branch until we hit the join node or end
-            branch_result, branch_trace_entries = self._execute_branch(
-                branch_node, branch_context, outgoing, node_by_id, edges, remaining_steps
-            )
+            branch_id = f"{parallel_id}_branch_{idx}"
 
-            results.append(branch_result)
-            trace.extend(branch_trace_entries)
+            # Create Celery task signature for this branch
+            task_sig = execute_branch_task.s(
+                branch_id=branch_id,
+                start_node=branch_node,
+                context=branch_context,
+                outgoing=outgoing,
+                node_by_id=node_by_id,
+                edges=edges,
+                max_steps=remaining_steps
+            )
+            branch_tasks.append(task_sig)
+
+        # Execute all branches in parallel using Celery group
+        if branch_tasks:
+            logger.info(f"[Parallel Execution] Dispatching {len(branch_tasks)} tasks to Celery")
+            job = group(branch_tasks)
+            result = job.apply_async()
+
+            # Wait for all branches to complete
+            logger.info(f"[Parallel Execution] Waiting for parallel branches to complete...")
+            # Explicitly allow synchronous subtask joining inside a Celery task
+            branch_results = result.get(timeout=300, disable_sync_subtasks=False)  # 5 minute timeout
+            logger.info(f"[Parallel Execution] All {len(branch_results)} branches completed")
+        else:
+            branch_results = []
+
+        # Collect results and traces
+        results = []
+        trace = []
+
+        for branch_result in branch_results:
+            if branch_result.get('status') == 'ok':
+                results.append(branch_result.get('final_output'))
+                trace.extend(branch_result.get('trace', []))
+            else:
+                # Branch failed, add None result
+                results.append(None)
+                logger.error(f"[Parallel Execution] Branch {branch_result.get('branch_id')} failed: {branch_result.get('error')}")
 
         return results, trace
 
