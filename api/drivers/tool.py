@@ -1,4 +1,7 @@
 from typing import Any, Dict, List
+import logging
+
+logger = logging.getLogger(__name__)
 import os
 import json
 from .base import BaseDriver, DriverResponse
@@ -8,11 +11,15 @@ class ToolDriver(BaseDriver):
     type = "tool"
 
     def execute(self, node: Dict[str, Any], context: Dict[str, Any]) -> DriverResponse:
+        node_id = node.get("id", "unknown")
         data = (node.get("data") or {})
         operation = data.get("operation") or "echo"
         arg = data.get("arg") or ""
         input_val = context.get("input")
         tool_name = data.get("label", "Tool")
+
+        logger.info(f"[Tool] Node: {tool_name} ({node_id}) - Operation: {operation}")
+        logger.debug(f"[Tool] Input: {str(input_val)[:100]}...")
 
         try:
             if operation == "google_search":
@@ -88,10 +95,14 @@ class ToolDriver(BaseDriver):
                 # Default: echo provided params
                 out = {"echo": context.get("params", {})}
 
+            logger.info(f"[Tool] Operation {operation} completed successfully")
+            logger.debug(f"[Tool] Output: {str(out)[:100]}...")
+
             return DriverResponse({
                 "output": out,
                 "tool": tool_name,
                 "status": "ok",
             })
         except Exception as exc:
+            logger.error(f"[Tool] Error in {tool_name} ({node_id}): {str(exc)}")
             return DriverResponse({"status": "error", "error": str(exc)})

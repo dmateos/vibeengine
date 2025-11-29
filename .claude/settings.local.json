@@ -20,7 +20,8 @@
       "Bash(pip freeze:*)",
       "Bash(chmod:*)",
       "Bash(netstat:*)",
-      "Bash(ss:*)"
+      "Bash(ss:*)",
+      "Bash(redis-cli ping:*)"
     ],
     "deny": [],
     "ask": []

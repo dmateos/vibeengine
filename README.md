@@ -199,16 +199,46 @@ curl -X POST http://localhost:8000/api/workflows/<workflow-id>/trigger/ \
   -d '{"input": "Hello World"}'
 ```
 
-Response includes execution ID, status, and results:
+Response includes execution ID and status:
 
 ```json
 {
-  "execution_id": "abc123...",
-  "status": "completed",
-  "final": "Processed output",
-  "trace": [...],
-  "execution_time": 2.5
+  "executionId": "abc123...",
+  "status": "started"
 }
+```
+
+To poll for results until completion:
+
+```bash
+#!/bin/bash
+# Trigger workflow and poll for completion
+
+# Trigger the workflow
+RESPONSE=$(curl -s -X POST http://localhost:8000/api/workflows/<workflow-id>/trigger/ \
+  -H "X-API-Key: <your-api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Hello World"}')
+
+# Extract execution ID
+EXECUTION_ID=$(echo $RESPONSE | grep -o '"executionId":"[^"]*"' | cut -d'"' -f4)
+echo "Execution started: $EXECUTION_ID"
+
+# Poll until completed or error
+while true; do
+  STATUS_RESPONSE=$(curl -s http://localhost:8000/api/execution/$EXECUTION_ID/status/)
+  STATUS=$(echo $STATUS_RESPONSE | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+
+  echo "Status: $STATUS"
+
+  if [ "$STATUS" = "completed" ] || [ "$STATUS" = "error" ]; then
+    echo "Final result:"
+    echo $STATUS_RESPONSE | python3 -m json.tool
+    break
+  fi
+
+  sleep 1
+done
 ```
 
 ### Viewing Execution History

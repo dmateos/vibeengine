@@ -1,4 +1,7 @@
 from typing import Any, Dict
+import logging
+
+logger = logging.getLogger(__name__)
 import re
 from .base import BaseDriver, DriverResponse
 
@@ -7,10 +10,15 @@ class TextTransformDriver(BaseDriver):
     type = "text_transform"
 
     def execute(self, node: Dict[str, Any], context: Dict[str, Any]) -> DriverResponse:
+        node_id = node.get("id", "unknown")
         input_text = context.get("input", "")
         data = node.get("data") or {}
+        label = data.get("label", "Text Transform")
 
         operation = data.get("operation", "upper")
+
+        logger.info(f"[Text Transform] Node: {label} ({node_id}) - Operation: {operation}")
+        logger.debug(f"[Text Transform] Input: {str(input_text)[:100]}...")
 
         try:
             # String replacement
@@ -193,6 +201,7 @@ class TextTransformDriver(BaseDriver):
                 })
 
             else:
+                logger.error(f"[Text Transform] Unknown operation: {operation}")
                 return DriverResponse({
                     "status": "error",
                     "error": f"Unknown operation: {operation}",
@@ -200,12 +209,14 @@ class TextTransformDriver(BaseDriver):
                 })
 
         except re.error as exc:
+            logger.error(f"[Text Transform] Invalid regex: {str(exc)}")
             return DriverResponse({
                 "status": "error",
                 "error": f"Invalid regex pattern: {str(exc)}",
                 "output": input_text,
             })
         except Exception as exc:
+            logger.error(f"[Text Transform] Error: {str(exc)}")
             return DriverResponse({
                 "status": "error",
                 "error": f"Text transform error: {str(exc)}",

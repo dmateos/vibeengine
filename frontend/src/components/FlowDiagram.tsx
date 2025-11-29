@@ -35,6 +35,7 @@ import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
 import ConsensusNode from './nodes/ConsensusNode'
 import ConversationNode from './nodes/ConversationNode'
+import TCPOutputNode from './nodes/TCPOutputNode'
 import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
 import { useAuth } from '../contexts/AuthContext'
@@ -81,6 +82,7 @@ const nodeTypes = {
   join: JoinNode,
   consensus: ConsensusNode,
   conversation: ConversationNode,
+  tcp_output: TCPOutputNode,
 }
 
 const initialNodes: Node[] = []
@@ -1120,6 +1122,56 @@ function FlowDiagram() {
                       style={{ width: 100, marginLeft: 6 }}
                     />
                   </div>
+                  {/* API Key for OpenAI and Claude */}
+                  {(selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent') && (
+                    <div className="detail-item">
+                      <strong>API Key (optional):</strong>
+                      <input
+                        type="password"
+                        value={(selectedNode.data as any)?.api_key ?? ''}
+                        onChange={(e) => {
+                          const api_key = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), api_key } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), api_key } } : prev))
+                        }}
+                        style={{ width: '100%', marginLeft: 6 }}
+                        placeholder={`Leave empty to use ${selectedNode.type === 'openai_agent' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY'} env var`}
+                      />
+                      <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                        Override the environment variable API key for this node
+                      </small>
+                    </div>
+                  )}
+
+                  {/* Base URL for OpenAI and Claude */}
+                  {(selectedNode.type === 'openai_agent' || selectedNode.type === 'claude_agent') && (
+                    <div className="detail-item">
+                      <strong>Base URL (optional):</strong>
+                      <input
+                        type="text"
+                        value={(selectedNode.data as any)?.base_url ?? ''}
+                        onChange={(e) => {
+                          const base_url = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), base_url } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), base_url } } : prev))
+                        }}
+                        style={{ width: '100%', marginLeft: 6 }}
+                        placeholder={selectedNode.type === 'openai_agent' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com'}
+                      />
+                      <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                        For custom API endpoints or proxies
+                      </small>
+                    </div>
+                  )}
+
                   <div className="detail-item">
                     <strong>System Prompt:</strong>
                     <textarea
@@ -1907,6 +1959,147 @@ function FlowDiagram() {
                 </>
               )}
 
+              {/* TCP Output Node */}
+              {selectedNode.type === 'tcp_output' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Host:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.host ?? 'localhost'}
+                      onChange={(e) => {
+                        const host = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), host } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), host } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="e.g., localhost or 192.168.1.100"
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Port:</strong>
+                    <input
+                      type="number"
+                      min="1"
+                      max="65535"
+                      value={(selectedNode.data as any)?.port ?? 9000}
+                      onChange={(e) => {
+                        const port = parseInt(e.target.value)
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), port } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), port } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="e.g., 9000"
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Format:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.format ?? 'raw'}
+                      onChange={(e) => {
+                        const format = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), format } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), format } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="raw">Raw (as-is)</option>
+                      <option value="json">JSON</option>
+                      <option value="newline">Newline-delimited</option>
+                    </select>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Timeout (seconds):</strong>
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={(selectedNode.data as any)?.timeout ?? 10}
+                      onChange={(e) => {
+                        const timeout = parseInt(e.target.value)
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), timeout } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), timeout } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                      placeholder="10"
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Wait for Response:</strong>
+                    <input
+                      type="checkbox"
+                      checked={(selectedNode.data as any)?.wait_response ?? false}
+                      onChange={(e) => {
+                        const wait_response = e.target.checked
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), wait_response } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), wait_response } } : prev))
+                      }}
+                      style={{ marginLeft: 6 }}
+                    />
+                    <span style={{ marginLeft: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Wait for server response after sending data
+                    </span>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Encoding:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.encoding ?? 'utf-8'}
+                      onChange={(e) => {
+                        const encoding = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), encoding } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), encoding } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="utf-8">UTF-8</option>
+                      <option value="ascii">ASCII</option>
+                      <option value="latin-1">Latin-1</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
               {/* Test Execution Section */}
               <div className="detail-item" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                 <strong>Test Input:</strong>
@@ -2346,6 +2539,99 @@ function FlowDiagram() {
                       style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}
                     >
                       Copy Command
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      background: 'var(--bg-tertiary)',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                      Bash Script (Trigger + Poll for Results)
+                    </strong>
+                    <pre
+                      style={{
+                        margin: 0,
+                        padding: '0.75rem',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        overflow: 'auto',
+                        color: 'var(--text-primary)',
+                        maxHeight: '300px',
+                      }}
+                    >
+{`#!/bin/bash
+# Trigger workflow and poll for completion
+
+# Trigger the workflow
+RESPONSE=$(curl -s -X POST ${API_BASE_URL}/workflows/${currentWorkflow.id}/trigger/ \\
+  -H "X-API-Key: ${currentWorkflow.api_key}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"input": "your input text here"}')
+
+# Extract execution ID
+EXECUTION_ID=$(echo $RESPONSE | grep -o '"executionId":"[^"]*"' | cut -d'"' -f4)
+echo "Execution started: $EXECUTION_ID"
+
+# Poll until completed or error
+while true; do
+  STATUS_RESPONSE=$(curl -s ${API_BASE_URL}/execution/$EXECUTION_ID/status/)
+  STATUS=$(echo $STATUS_RESPONSE | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+
+  echo "Status: $STATUS"
+
+  if [ "$STATUS" = "completed" ] || [ "$STATUS" = "error" ]; then
+    echo "Final result:"
+    echo $STATUS_RESPONSE | python3 -m json.tool
+    break
+  fi
+
+  sleep 1
+done`}
+                    </pre>
+                    <button
+                      className="btn-secondary"
+                      onClick={() =>
+                        copyToClipboard(
+                          `#!/bin/bash
+# Trigger workflow and poll for completion
+
+# Trigger the workflow
+RESPONSE=$(curl -s -X POST ${API_BASE_URL}/workflows/${currentWorkflow.id}/trigger/ \\
+  -H "X-API-Key: ${currentWorkflow.api_key}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"input": "your input text here"}')
+
+# Extract execution ID
+EXECUTION_ID=$(echo $RESPONSE | grep -o '"executionId":"[^"]*"' | cut -d'"' -f4)
+echo "Execution started: $EXECUTION_ID"
+
+# Poll until completed or error
+while true; do
+  STATUS_RESPONSE=$(curl -s ${API_BASE_URL}/execution/$EXECUTION_ID/status/)
+  STATUS=$(echo $STATUS_RESPONSE | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+
+  echo "Status: $STATUS"
+
+  if [ "$STATUS" = "completed" ] || [ "$STATUS" = "error" ]; then
+    echo "Final result:"
+    echo $STATUS_RESPONSE | python3 -m json.tool
+    break
+  fi
+
+  sleep 1
+done`,
+                          'Bash script'
+                        )
+                      }
+                      style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}
+                    >
+                      Copy Script
                     </button>
                   </div>
                 </div>

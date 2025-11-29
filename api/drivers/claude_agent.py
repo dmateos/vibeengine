@@ -1,7 +1,10 @@
 from typing import Any, Dict, List, Tuple
 import os
 import json
+import logging
 from .base import BaseAgentDriver, DriverResponse
+
+logger = logging.getLogger(__name__)
 
 
 class ClaudeAgentDriver(BaseAgentDriver):
@@ -254,15 +257,23 @@ class ClaudeAgentDriver(BaseAgentDriver):
         input_text = context.get("input", "")
         data = (node.get("data") or {})
         label = data.get("label", "Claude Agent")
+        node_id = node.get("id", "unknown")
         knowledge = context.get("knowledge") or {}
         tools = context.get("tools") or []
 
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        base_url = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+        logger.info(f"[Claude] Starting execution - Node: {label} ({node_id})")
+        logger.debug(f"[Claude] Input: {str(input_text)[:200]}...")
+
+        # API key: check node data first, then fall back to env var
+        api_key = data.get("api_key") or os.getenv("ANTHROPIC_API_KEY")
+        base_url = data.get("base_url") or os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
         # Default to requested Claude Sonnet model if none specified in node data
         model = data.get("model") or "claude-sonnet-4-5-20250929"
         temperature_val = self._get_temperature(data)
         system_prompt = self._build_system_prompt(data, knowledge)
+
+        logger.info(f"[Claude] Using model: {model}, temperature: {temperature_val}, base_url: {base_url}")
+        logger.debug(f"[Claude] API key source: {'node config' if data.get('api_key') else 'env var'}")
 
         if not api_key:
             return self._fallback_response(input_text, label, knowledge, tools, "Anthropic API key not configured")
@@ -341,6 +352,12 @@ class ClaudeAgentDriver(BaseAgentDriver):
 
             # The 'content' already contains the LLM's final response after seeing tool results
             # (if tools were called, the LLM has already incorporated their results)
+            logger.info(f"[Claude] Execution completed - Node: {label} ({node_id})")
+            logger.debug(f"[Claude] Output: {str(content)[:200]}...")
+            if call_log:
+                logger.info(f"[Claude] Tool calls made: {len(call_log)}")
+                logger.debug(f"[Claude] Tool call log: {json.dumps(call_log)[:500]}...")
+
             resp = DriverResponse({
                 "output": content,
                 "model": model,
@@ -352,6 +369,8 @@ class ClaudeAgentDriver(BaseAgentDriver):
             # Check if node configured to continue on error
             continue_on_error = data.get('continue_on_error', False)
             error_msg = f"Claude API failed: {str(exc)}"
+
+            logger.error(f"[Claude] Error in node {label} ({node_id}): {error_msg}")
 
             if continue_on_error:
                 # Continue workflow but track the error

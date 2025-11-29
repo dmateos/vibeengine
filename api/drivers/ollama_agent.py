@@ -1,7 +1,10 @@
 from typing import Any, Dict, List
 import os
 import json
+import logging
 from .base import BaseAgentDriver, DriverResponse
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaAgentDriver(BaseAgentDriver):
@@ -89,13 +92,19 @@ class OllamaAgentDriver(BaseAgentDriver):
         input_text = context.get("input", "")
         data = (node.get("data") or {})
         label = data.get("label", "Ollama Agent")
+        node_id = node.get("id", "unknown")
         knowledge = context.get("knowledge") or {}
+
+        logger.info(f"[Ollama] Starting execution - Node: {label} ({node_id})")
+        logger.debug(f"[Ollama] Input: {str(input_text)[:200]}...")
 
         # Allow base_url to be configured per-node, fallback to env var, then default
         base_url = data.get("base_url") or os.getenv("OLLAMA_BASE_URL") or "http://localhost:11434"
         model = data.get("model") or os.getenv("OLLAMA_MODEL", "llama3.1:8b-instruct")
         temperature_val = self._get_temperature(data)
         system_prompt = self._build_system_prompt(data, knowledge)
+
+        logger.info(f"[Ollama] Using model: {model}, temperature: {temperature_val}, base_url: {base_url}")
 
         # Ollama does not require API keys by default (local runtime)
         headers = {"Content-Type": "application/json"}
@@ -111,6 +120,10 @@ class OllamaAgentDriver(BaseAgentDriver):
                 "options": {"temperature": temperature_val},
             }
             content = self._post_chat(base_url, body, headers)
+
+            logger.info(f"[Ollama] Execution completed - Node: {label} ({node_id})")
+            logger.debug(f"[Ollama] Output: {str(content)[:200]}...")
+
             return DriverResponse({
                 "output": content,
                 "model": model,
@@ -120,6 +133,8 @@ class OllamaAgentDriver(BaseAgentDriver):
             # Check if node configured to continue on error
             continue_on_error = data.get('continue_on_error', False)
             error_msg = f"Ollama connection failed: {str(exc)}"
+
+            logger.error(f"[Ollama] Error in node {label} ({node_id}): {error_msg}")
 
             if continue_on_error:
                 # Continue workflow but track the error

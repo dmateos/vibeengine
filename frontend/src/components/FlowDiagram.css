@@ -399,13 +399,13 @@
 }
 
 .btn-tool.btn-danger {
-  color: #dc2626;
+  color: #991b1b;
   border-color: #fca5a5;
 }
 
 .btn-tool.btn-danger:hover {
   background: #fee2e2;
-  border-color: #dc2626;
+  border-color: #991b1b;
   color: #b91c1c;
 }
 
@@ -420,7 +420,7 @@
 
 :root[data-theme="dark"] .btn-tool.btn-danger:hover {
   background: #7f1d1d;
-  border-color: #dc2626;
+  border-color: #991b1b;
   color: #fca5a5;
 }
 
@@ -483,7 +483,7 @@
 }
 
 .btn-delete {
-  background: #ef4444;
+  background: #b91c1c;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -495,7 +495,7 @@
 }
 
 .btn-delete:hover {
-  background: #dc2626;
+  background: #991b1b;
 }
 
 /* Main Content Area (Canvas + Sidebar) */
@@ -905,7 +905,7 @@
   margin-top: 1rem;
   width: 100%;
   padding: 0.5rem;
-  background: #ef4444;
+  background: #b91c1c;
   color: white;
   border: none;
   border-radius: 6px;
@@ -915,7 +915,7 @@
 }
 
 .btn-close:hover {
-  background: #dc2626;
+  background: #991b1b;
 }
 
 /* React Flow Overrides */
@@ -995,7 +995,7 @@
 
 /* Optional: memory/tool edge base styles if className present */
 .react-flow__edge.edge-memory .react-flow__edge-path {
-  stroke: #ef4444;
+  stroke: #b91c1c;
   stroke-dasharray: 6 4;
 }
 .react-flow__edge.edge-tool .react-flow__edge-path {
@@ -1100,7 +1100,7 @@
 }
 
 .toast-error {
-  background: #ef4444;
+  background: #b91c1c;
   color: white;
 }
 
@@ -1137,14 +1137,14 @@
 
 /* Node execution states - target the .custom-node inside */
 .react-flow__node.node-running .custom-node {
-  border-color: #ef4444;
+  border-color: #b91c1c;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
   animation: pulse-border 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse-border {
   0%, 100% {
-    border-color: #ef4444;
+    border-color: #b91c1c;
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
   }
   50% {
@@ -1159,9 +1159,9 @@
 }
 
 .react-flow__node.node-error .custom-node {
-  border-color: #ef4444;
-  background: #fee2e2;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  border-color: #991b1b;
+  background: #dc2626;
+  box-shadow: 0 4px 12px rgba(153, 27, 27, 0.5);
 }
 
 /* Error badge in top-right corner */
@@ -1172,7 +1172,7 @@
   right: -8px;
   width: 20px;
   height: 20px;
-  background: #ef4444;
+  background: #b91c1c;
   color: white;
   border-radius: 50%;
   display: flex;
@@ -1323,7 +1323,7 @@
 
 .consensus-status.consensus-no {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.08) 100%);
-  border-color: #ef4444;
+  border-color: #b91c1c;
 }
 
 .consensus-status-icon {
@@ -1342,7 +1342,7 @@
 }
 
 .consensus-status.consensus-no .consensus-status-text {
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .consensus-metrics {
@@ -1462,7 +1462,7 @@
 }
 
 .consensus-response-disagree {
-  border-color: #ef4444;
+  border-color: #b91c1c;
   background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);
 }
 
@@ -1480,7 +1480,7 @@
 }
 
 .consensus-response-disagree .response-number {
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .response-content {

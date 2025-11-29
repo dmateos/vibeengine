@@ -1,4 +1,7 @@
 from typing import Any, Dict, List
+import logging
+
+logger = logging.getLogger(__name__)
 from .base import BaseDriver, DriverResponse
 
 
@@ -40,10 +43,14 @@ class JoinDriver(BaseDriver):
 
         If no sources specified, defaults to parallel_results for backward compatibility.
         """
+        node_id = node.get("id", "unknown")
         data = node.get('data') or {}
+        label = data.get("label", "Join")
         merge_strategy = data.get('merge_strategy', 'list')
         separator = data.get('separator', '')
         sources = data.get('sources')
+
+        logger.info(f"[Join] Node: {label} ({node_id}) - Strategy: {merge_strategy}")
 
         # Gather values from configured sources
         if sources:
@@ -53,12 +60,17 @@ class JoinDriver(BaseDriver):
                 value = self._get_value_from_source(source, context)
                 if value is not None:
                     values.append(value)
+            logger.debug(f"[Join] Joining {len(values)} custom sources")
         else:
             # Default: use parallel_results for backward compatibility
             values = context.get('parallel_results', [])
+            logger.debug(f"[Join] Joining {len(values)} parallel results")
 
         # Merge results according to strategy
         merged_output = self._merge_results(values, merge_strategy, separator)
+
+        logger.info(f"[Join] Successfully merged {len(values)} values")
+        logger.debug(f"[Join] Output: {str(merged_output)[:100]}...")
 
         return DriverResponse({
             "status": "ok",

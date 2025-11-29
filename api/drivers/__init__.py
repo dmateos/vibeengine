@@ -17,6 +17,7 @@ from .huggingface import HuggingFaceDriver
 from .text_transform import TextTransformDriver
 from .consensus import ConsensusDriver
 from .conversation import ConversationDriver
+from .tcp_output import TCPOutputDriver
 
 
 # Registry of all available drivers
@@ -38,6 +39,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     TextTransformDriver.type: TextTransformDriver(),
     ConsensusDriver.type: ConsensusDriver(),
     ConversationDriver.type: ConversationDriver(),
+    TCPOutputDriver.type: TCPOutputDriver(),
 }
 
 
@@ -88,6 +90,7 @@ __all__ = [
     "TextTransformDriver",
     "ConsensusDriver",
     "ConversationDriver",
+    "TCPOutputDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]

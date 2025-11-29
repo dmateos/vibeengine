@@ -1,4 +1,7 @@
 from typing import Any, Dict
+import logging
+
+logger = logging.getLogger(__name__)
 from .base import BaseDriver, DriverResponse
 
 
@@ -30,8 +33,15 @@ class ParallelDriver(BaseDriver):
         3. Executing each branch independently
         4. Collecting results for the join node
         """
+        node_id = node.get("id", "unknown")
+        label = node.get("data", {}).get("label", "Parallel")
+        input_val = context.get("input")
+
+        logger.info(f"[Parallel] Node: {label} ({node_id}) - Starting parallel execution")
+        logger.debug(f"[Parallel] Input to all branches: {str(input_val)[:100]}...")
+
         return DriverResponse({
             "status": "ok",
             "parallel": True,
-            "output": context.get("input"),  # Pass input through to all branches
+            "output": input_val,  # Pass input through to all branches
         })

@@ -150,13 +150,25 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Cache settings for workflow execution state
+# Cache settings - Redis is required for Celery distributed execution
+import os
+
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'workflow-execution-cache',
-        'OPTIONS': {
-            'MAX_ENTRIES': 1000
-        }
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
     }
 }
+
+# Celery Configuration - Redis required
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes max per task
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True

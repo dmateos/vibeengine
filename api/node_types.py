@@ -145,6 +145,15 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Transform text with replace, regex, filter, split, and more',
         'category': 'Data',
     },
+
+    # Network/Output
+    'tcp_output': {
+        'display_name': 'TCP Output',
+        'icon': '🔌',
+        'color': '#0891b2',
+        'description': 'Send data to a TCP server/socket',
+        'category': 'Network',
+    },
 }
 
 

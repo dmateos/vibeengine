@@ -13,9 +13,9 @@ from .orchestration import WorkflowExecutor, PollingExecutor
 from .node_types import get_all_node_types
 from typing import Any, Dict, List, Optional
 from django.core.cache import cache
-import threading
 import uuid
 import time
+from .tasks import execute_workflow_task
 
 
 # Authentication endpoints
@@ -285,50 +285,15 @@ def execute_workflow_async(request):
         except Workflow.DoesNotExist:
             pass  # Continue without saving history if workflow not found
 
-    # Define background execution function
-    def execute_in_background():
-        start_time = time.time()
-        try:
-            executor = PollingExecutor(execution_id=execution_id)
-            executor.execute(nodes, edges, context, start_node_id)
-
-            # Wait for executor to finish and update cache
-            time.sleep(0.5)
-
-            # Get final result from cache and update execution record
-            if execution_record:
-                execution_state = cache.get(f'execution_{execution_id}')
-                if execution_state:
-                    execution_time = time.time() - start_time
-                    execution_record.status = execution_state.get('status', 'completed')
-                    execution_record.final_output = str(execution_state.get('final', ''))
-                    execution_record.trace = execution_state.get('trace', [])
-                    error_msg = execution_state.get('error')
-                    execution_record.error_message = error_msg if error_msg else ''
-                    execution_record.execution_time = execution_time
-                    execution_record.save()
-        except Exception as e:
-            # Update cache with error
-            cache.set(f'execution_{execution_id}', {
-                'status': 'error',
-                'error': str(e),
-                'currentNodeId': None,
-                'completedNodes': [],
-                'errorNodes': [],
-                'trace': []
-            }, timeout=300)
-
-            # Update execution record
-            if execution_record:
-                execution_time = time.time() - start_time
-                execution_record.status = 'error'
-                execution_record.error_message = str(e)
-                execution_record.execution_time = execution_time
-                execution_record.save()
-
-    # Start background thread
-    thread = threading.Thread(target=execute_in_background, daemon=True)
-    thread.start()
+    # Execute workflow in background using Celery
+    execute_workflow_task.delay(
+        execution_id=execution_id,
+        nodes=nodes,
+        edges=edges,
+        context=context,
+        start_node_id=start_node_id,
+        workflow_execution_id=execution_record.id if execution_record else None
+    )
 
     return Response({
         'executionId': execution_id,
@@ -442,48 +407,15 @@ def trigger_workflow(request, workflow_id):
         triggered_by='api'
     )
 
-    # Execute workflow in background
-    def execute_in_background():
-        start_time = time.time()
-        try:
-            executor = PollingExecutor(execution_id=execution_id)
-            executor.execute(nodes, edges, context, start_node_id=None)
-
-            # Wait a bit for the executor to finish and update cache
-            import time as time_module
-            time_module.sleep(0.5)
-
-            # Get final result from cache
-            execution_state = cache.get(f'execution_{execution_id}')
-            if execution_state:
-                execution_time = time.time() - start_time
-                execution_record.status = execution_state.get('status', 'completed')
-                execution_record.final_output = str(execution_state.get('final', ''))
-                execution_record.trace = execution_state.get('trace', [])
-                error_msg = execution_state.get('error')
-                execution_record.error_message = error_msg if error_msg else ''
-                execution_record.execution_time = execution_time
-                execution_record.save()
-        except Exception as e:
-            execution_time = time.time() - start_time
-            cache.set(f'execution_{execution_id}', {
-                'status': 'error',
-                'error': str(e),
-                'currentNodeId': None,
-                'completedNodes': [],
-                'errorNodes': [],
-                'trace': []
-            }, timeout=300)
-
-            # Update execution record
-            execution_record.status = 'error'
-            execution_record.error_message = str(e)
-            execution_record.execution_time = execution_time
-            execution_record.save()
-
-    # Start background thread
-    thread = threading.Thread(target=execute_in_background, daemon=True)
-    thread.start()
+    # Execute workflow in background using Celery
+    execute_workflow_task.delay(
+        execution_id=execution_id,
+        nodes=nodes,
+        edges=edges,
+        context=context,
+        start_node_id=None,
+        workflow_execution_id=execution_record.id
+    )
 
     return Response({
         "executionId": execution_id,

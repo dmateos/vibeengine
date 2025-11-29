@@ -13,5 +13,9 @@ huggingface-hub==0.36.0
 tokenizers==0.22.1
 safetensors==0.7.0
 
+# Task Queue / Background Jobs (requires Redis)
+celery[redis]==5.4.0
+redis==5.0.1
+
 # Utilities
 PyYAML==6.0.3

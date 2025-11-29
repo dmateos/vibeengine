@@ -1,6 +1,9 @@
 from typing import Any, Dict
 import re
+import logging
 from .base import BaseDriver, DriverResponse
+
+logger = logging.getLogger(__name__)
 
 
 class ConditionDriver(BaseDriver):
@@ -35,11 +38,17 @@ class ConditionDriver(BaseDriver):
         """
         Execute the condition node by evaluating the configured expression.
         """
+        node_id = node.get("id", "unknown")
         data = node.get('data') or {}
+        label = data.get("label", "Condition")
         expression = data.get('expression', '')
+
+        logger.info(f"[Condition] Node: {label} ({node_id})")
+        logger.debug(f"[Condition] Expression: {expression}")
 
         if not expression:
             # No expression, default to 'no'
+            logger.warning(f"[Condition] No expression configured, defaulting to 'no'")
             return DriverResponse({
                 "status": "ok",
                 "route": "no",
@@ -48,8 +57,10 @@ class ConditionDriver(BaseDriver):
         try:
             result = self._evaluate_expression(expression, context)
             route = "yes" if result else "no"
+            logger.info(f"[Condition] Evaluation result: {result}, Route: {route}")
         except Exception as e:
             # On error, route to 'no' and include error in response
+            logger.error(f"[Condition] Expression evaluation failed: {str(e)}")
             return DriverResponse({
                 "status": "ok",
                 "route": "no",
