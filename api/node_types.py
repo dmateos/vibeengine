@@ -62,6 +62,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Local Hugging Face models for classification, NER, Q&A, embeddings, and more',
         'category': 'Agents',
     },
+    'memory': {
+        'display_name': 'Memory',
+        'icon': '🧠',
+        'color': '#ef4444',
+        'description': 'Read/write flow state',
+        'category': 'Agents',
+    },
 
     # Control Flow
     'condition': {
@@ -124,13 +131,6 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
     },
 
     # Data
-    'memory': {
-        'display_name': 'Memory',
-        'icon': '🧠',
-        'color': '#ef4444',
-        'description': 'Read/write flow state',
-        'category': 'Data',
-    },
     'json_validator': {
         'display_name': 'JSON Validator',
         'icon': '✓',

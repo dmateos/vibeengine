@@ -15,6 +15,9 @@ import {
   type Edge,
   type Connection,
 } from '@xyflow/react'
+import CodeMirror from '@uiw/react-codemirror'
+import { python as pythonLang } from '@codemirror/lang-python'
+import { oneDark } from '@codemirror/theme-one-dark'
 import '@xyflow/react/dist/style.css'
 import './FlowDiagram.css'
 import InputNode from './nodes/InputNode'
@@ -537,6 +540,12 @@ function FlowDiagram() {
       data: {
         label: `New ${nodeType.display_name}`,
         icon: nodeType.icon,
+        ...(nodeType.name === 'python_code'
+          ? {
+              code: 'def def_main(text: str):\n    # text contains upstream context.input\n    return text\n',
+              timeout: 10,
+            }
+          : {}),
       },
       position: {
         x: startX + col * nodeWidth,
@@ -1338,11 +1347,19 @@ function FlowDiagram() {
                     />
                   </div>
                   <div className="detail-item">
-                    <strong>Python Code:</strong>
-                    <textarea
-                      value={(selectedNode.data as any)?.code ?? 'import sys\ntext = sys.stdin.read()\nprint(text)'}
-                      onChange={(e) => {
-                        const code = e.target.value
+                <strong>Python Code:</strong>
+                    <CodeMirror
+                      value={(selectedNode.data as any)?.code ?? 'def def_main(text: str):\n    # text contains upstream context.input\n    return text.upper()\n'}
+                      height="260px"
+                      theme={oneDark}
+                      extensions={[pythonLang()]}
+                      basicSetup={{
+                        lineNumbers: true,
+                        highlightActiveLineGutter: true,
+                        bracketMatching: true,
+                        autocompletion: true,
+                      }}
+                      onChange={(code) => {
                         setNodes((nds) =>
                           nds.map((n) =>
                             n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), code } } : n
@@ -1350,20 +1367,14 @@ function FlowDiagram() {
                         )
                         setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), code } } : prev))
                       }}
-                      rows={8}
                       style={{
-                        width: '100%',
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                        background: '#0b1220',
-                        color: '#e5e7eb',
-                        padding: '10px',
                         borderRadius: '8px',
+                        overflow: 'hidden',
                         border: '1px solid #1f2937',
                       }}
-                      placeholder="Write Python that reads from stdin and prints output..."
                     />
                     <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
-                      stdin receives the incoming context.input; stdout becomes this node&apos;s output.
+                      Implement <code>def_main(text: str)</code>. Incoming <code>context.input</code> is passed as <code>text</code>; the return value becomes this node&apos;s output (dict/list is JSON-serialized).
                     </small>
                   </div>
                 </>

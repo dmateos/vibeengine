@@ -23,19 +23,34 @@ class PythonCodeDriver(BaseDriver):
         logger.debug(f"[Python Code] Stdin preview: {str(stdin_value)[:200]}...")
 
         if not str(code).strip():
-            return DriverResponse({
-                "status": "error",
-                "error": "Python code is required",
-            })
+            code = "def def_main(text: str):\n    return text"
 
         try:
             timeout_val = float(timeout) if timeout is not None else 10.0
         except Exception:
             timeout_val = 10.0
 
+        wrapper = (
+            "import json\n"
+            "import sys\n"
+            "from types import SimpleNamespace\n\n"
+            "# User code\n"
+            f"{code}\n\n"
+            "if 'def_main' not in globals():\n"
+            "    raise SystemExit('def_main(text: str) is required')\n"
+            "text = sys.stdin.read()\n"
+            "result = def_main(text)\n"
+            "if result is None:\n"
+            "    sys.exit(0)\n"
+            "if isinstance(result, (dict, list)):\n"
+            "    sys.stdout.write(json.dumps(result))\n"
+            "else:\n"
+            "    sys.stdout.write(str(result))\n"
+        )
+
         try:
             result = subprocess.run(
-                ["python", "-c", code],
+                ["python", "-c", wrapper],
                 input="" if stdin_value is None else str(stdin_value),
                 capture_output=True,
                 text=True,
