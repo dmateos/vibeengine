@@ -525,13 +525,17 @@ class WorkflowExecutor:
         if branch_tasks:
             logger.info(f"[Parallel Execution] Dispatching {len(branch_tasks)} tasks to Celery")
             job = group(branch_tasks)
-            result = job.apply_async()
+            try:
+                result = job.apply_async()
 
-            # Wait for all branches to complete
-            logger.info(f"[Parallel Execution] Waiting for parallel branches to complete...")
-            # Explicitly allow synchronous subtask joining inside a Celery task
-            branch_results = result.get(timeout=300, disable_sync_subtasks=False)  # 5 minute timeout
-            logger.info(f"[Parallel Execution] All {len(branch_results)} branches completed")
+                # Wait for all branches to complete
+                logger.info(f"[Parallel Execution] Waiting for parallel branches to complete...")
+                # Explicitly allow synchronous subtask joining inside a Celery task
+                branch_results = result.get(timeout=300, disable_sync_subtasks=False)  # 5 minute timeout
+                logger.info(f"[Parallel Execution] All {len(branch_results)} branches completed")
+            except Exception as exc:
+                logger.error(f"[Parallel Execution] Failed to dispatch/collect parallel branches: {exc}")
+                return [], [{'status': 'error', 'error': str(exc)}]
         else:
             branch_results = []
 

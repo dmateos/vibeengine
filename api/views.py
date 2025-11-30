@@ -15,7 +15,12 @@ from typing import Any, Dict, List, Optional
 from django.core.cache import cache
 import uuid
 import time
+import logging
+from backend.celery import app as celery_app
 from .tasks import execute_workflow_task
+
+
+logger = logging.getLogger(__name__)
 
 
 # Authentication endpoints
@@ -120,6 +125,16 @@ def current_user(request):
             'email': request.user.email,
         }
     })
+
+
+def _celery_workers_available(timeout: float = 1.0) -> bool:
+    """Quickly check if any Celery workers are responding."""
+    try:
+        replies = celery_app.control.ping(timeout=timeout)
+        return bool(replies)
+    except Exception as exc:
+        logger.warning("Celery worker availability check failed: %s", exc)
+        return False
 
 
 @api_view(['GET'])
@@ -266,6 +281,13 @@ def execute_workflow_async(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Ensure a worker is available before enqueuing
+    if not _celery_workers_available():
+        return Response(
+            {'status': 'error', 'error': 'Task workers are unavailable. Please start a Celery worker and retry.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
     # Generate unique execution ID
     execution_id = str(uuid.uuid4())
 
@@ -286,14 +308,40 @@ def execute_workflow_async(request):
             pass  # Continue without saving history if workflow not found
 
     # Execute workflow in background using Celery
-    execute_workflow_task.delay(
-        execution_id=execution_id,
-        nodes=nodes,
-        edges=edges,
-        context=context,
-        start_node_id=start_node_id,
-        workflow_execution_id=execution_record.id if execution_record else None
-    )
+    try:
+        execute_workflow_task.delay(
+            execution_id=execution_id,
+            nodes=nodes,
+            edges=edges,
+            context=context,
+            start_node_id=start_node_id,
+            workflow_execution_id=execution_record.id if execution_record else None
+        )
+    except Exception as exc:
+        logger.exception("Failed to enqueue workflow %s", execution_id)
+        cache.set(
+            f'execution_{execution_id}',
+            {
+                'status': 'error',
+                'error': 'Task queue is unavailable',
+                'currentNodeId': None,
+                'completedNodes': [],
+                'errorNodes': [],
+                'trace': [],
+                'steps': 0,
+                'final': None,
+                'timestamp': time.time(),
+            },
+            timeout=300
+        )
+        if execution_record:
+            execution_record.status = 'error'
+            execution_record.error_message = 'Task queue is unavailable'
+            execution_record.save(update_fields=['status', 'error_message'])
+        return Response(
+            {'status': 'error', 'error': 'Task queue is unavailable. Please retry later.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
 
     return Response({
         'executionId': execution_id,
@@ -395,6 +443,13 @@ def trigger_workflow(request, workflow_id):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Ensure a worker is available before enqueuing
+    if not _celery_workers_available():
+        return Response(
+            {"status": "error", "error": "Task workers are unavailable. Please start a Celery worker and retry."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
     # Generate unique execution ID
     execution_id = str(uuid.uuid4())
 
@@ -408,14 +463,39 @@ def trigger_workflow(request, workflow_id):
     )
 
     # Execute workflow in background using Celery
-    execute_workflow_task.delay(
-        execution_id=execution_id,
-        nodes=nodes,
-        edges=edges,
-        context=context,
-        start_node_id=None,
-        workflow_execution_id=execution_record.id
-    )
+    try:
+        execute_workflow_task.delay(
+            execution_id=execution_id,
+            nodes=nodes,
+            edges=edges,
+            context=context,
+            start_node_id=None,
+            workflow_execution_id=execution_record.id
+        )
+    except Exception as exc:
+        logger.exception("Failed to enqueue workflow %s", execution_id)
+        cache.set(
+            f'execution_{execution_id}',
+            {
+                'status': 'error',
+                'error': 'Task queue is unavailable',
+                'currentNodeId': None,
+                'completedNodes': [],
+                'errorNodes': [],
+                'trace': [],
+                'steps': 0,
+                'final': None,
+                'timestamp': time.time(),
+            },
+            timeout=300
+        )
+        execution_record.status = 'error'
+        execution_record.error_message = 'Task queue is unavailable'
+        execution_record.save(update_fields=['status', 'error_message'])
+        return Response(
+            {"status": "error", "error": "Task queue is unavailable. Please retry later."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
 
     return Response({
         "executionId": execution_id,
