@@ -123,7 +123,8 @@ def execute_branch_task(
     outgoing: Dict[str, List[Dict[str, Any]]],
     node_by_id: Dict[str, Dict[str, Any]],
     edges: List[Dict[str, Any]],
-    max_steps: int = 100
+    max_steps: int = 100,
+    execution_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Execute a single branch in parallel execution.
@@ -144,6 +145,21 @@ def execute_branch_task(
 
     logger.info(f"[Branch Task] Starting branch execution - ID: {branch_id}, Node: {start_node.get('id')}")
 
+    def _update_parallel_status(status: str, error: Optional[str] = None):
+        """Push branch status into execution cache if execution_id is provided."""
+        if not execution_id:
+            return
+        cache_key = f'execution_{execution_id}'
+        state = cache.get(cache_key, {})
+        parallel_status = state.get('parallelStatus', {}) or {}
+        parallel_status[branch_id] = status
+        if error:
+            state['error'] = error
+        state['parallelStatus'] = parallel_status
+        cache.set(cache_key, state, timeout=300)
+
+    _update_parallel_status('running')
+
     try:
         executor = WorkflowExecutor()
 
@@ -154,6 +170,7 @@ def execute_branch_task(
 
         logger.info(f"[Branch Task] Branch {branch_id} completed successfully")
         logger.debug(f"[Branch Task] Branch {branch_id} output: {str(final_output)[:100]}...")
+        _update_parallel_status('ok')
 
         return {
             'branch_id': branch_id,
@@ -164,6 +181,7 @@ def execute_branch_task(
 
     except Exception as e:
         logger.error(f"[Branch Task] Branch {branch_id} failed: {str(e)}")
+        _update_parallel_status('error', str(e))
         return {
             'branch_id': branch_id,
             'final_output': None,

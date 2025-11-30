@@ -10,6 +10,7 @@ interface ExecutionState {
   steps: number;
   final: any;
   error: string | null;
+  parallelStatus?: Record<string, string>;
   timestamp?: number;
 }
 
@@ -32,6 +33,7 @@ export function usePolling(): UsePollingReturn {
     steps: 0,
     final: null,
     error: null,
+    parallelStatus: {},
   });
 
   const [isPolling, setIsPolling] = useState(false);
@@ -71,6 +73,7 @@ export function usePolling(): UsePollingReturn {
         steps: data.steps || 0,
         final: data.final || null,
         error: data.error || null,
+        parallelStatus: data.parallelStatus || {},
         timestamp: data.timestamp,
       });
 

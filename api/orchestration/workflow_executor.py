@@ -517,7 +517,8 @@ class WorkflowExecutor:
                 outgoing=outgoing,
                 node_by_id=node_by_id,
                 edges=edges,
-                max_steps=remaining_steps
+                max_steps=remaining_steps,
+                execution_id=getattr(self, 'execution_id', None),
             )
             branch_tasks.append(task_sig)
 

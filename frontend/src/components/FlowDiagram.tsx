@@ -154,8 +154,33 @@ function FlowDiagram() {
   useEffect(() => {
     if (executionState.status === 'idle') return
 
-    setNodes((nds) =>
-      nds.map((n) => {
+    setNodes((nds) => {
+      const nodeMap = Object.fromEntries(nds.map((n) => [n.id, n]))
+      const branchTargetStatus: Record<string, string> = {}
+      const parallelEdgeOrder: Record<string, string[]> = {}
+
+      edges.forEach((edge) => {
+        const srcNode = nodeMap[edge.source]
+        const tgtNode = nodeMap[edge.target]
+        if (!srcNode || !tgtNode) return
+        if (srcNode.type !== 'parallel') return
+        if (tgtNode.type === 'memory' || tgtNode.type === 'tool') return
+        if (!parallelEdgeOrder[srcNode.id]) {
+          parallelEdgeOrder[srcNode.id] = []
+        }
+        parallelEdgeOrder[srcNode.id].push(edge.target)
+      })
+
+      Object.entries(parallelEdgeOrder).forEach(([parallelId, targets]) => {
+        targets.forEach((targetId, idx) => {
+          const status = executionState.parallelStatus?.[`${parallelId}_branch_${idx}`]
+          if (status) {
+            branchTargetStatus[targetId] = status
+          }
+        })
+      })
+
+      return nds.map((n) => {
         const classes = []
 
         // Running state
@@ -173,13 +198,19 @@ function FlowDiagram() {
           classes.push('node-error')
         }
 
+        const branchStatus = branchTargetStatus[n.id]
+        if (branchStatus === 'queued') classes.push('node-branch-queued')
+        else if (branchStatus === 'running') classes.push('node-branch-running')
+        else if (branchStatus === 'ok') classes.push('node-branch-ok')
+        else if (branchStatus === 'error') classes.push('node-branch-error')
+
         return {
           ...n,
           className: classes.join(' ')
         }
       })
-    )
-  }, [executionState, setNodes])
+    })
+  }, [executionState, edges, setNodes])
 
   // Update workflow result when execution completes
   useEffect(() => {

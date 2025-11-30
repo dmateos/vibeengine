@@ -7,6 +7,11 @@ from typing import Any, Dict, List, Optional
 from django.core.cache import cache
 from .workflow_executor import WorkflowExecutor
 import time
+import logging
+from celery import group
+
+
+logger = logging.getLogger(__name__)
 
 
 class PollingExecutor(WorkflowExecutor):
@@ -47,7 +52,8 @@ class PollingExecutor(WorkflowExecutor):
             'steps': 0,
             'final': None,
             'error': None,
-            'timestamp': time.time()
+            'timestamp': time.time(),
+            'parallelStatus': {},
         })
 
         # Update with new values
@@ -68,7 +74,8 @@ class PollingExecutor(WorkflowExecutor):
             completedNodes=[],
             errorNodes=[],
             trace=[],
-            startNodeId=start_node_id
+            startNodeId=start_node_id,
+            parallelStatus={},
         )
 
     def _on_node_start(self, node: Dict[str, Any], steps: int) -> None:
@@ -122,3 +129,128 @@ class PollingExecutor(WorkflowExecutor):
             errorNodes=completed_nodes,
             trace=trace
         )
+
+    def _execute_parallel_branches(self, parallel_node: Dict[str, Any],
+                                   res: Dict[str, Any], context: Dict[str, Any],
+                                   outgoing: Dict[str, List[Dict[str, Any]]],
+                                   node_by_id: Dict[str, Dict[str, Any]],
+                                   edges: List[Dict[str, Any]],
+                                   remaining_steps: int) -> tuple:
+        """
+        Execute parallel branches while pushing branch status updates into cache.
+
+        Returns:
+            Tuple of (results_list, trace_list)
+        """
+        from ..tasks import execute_branch_task
+
+        parallel_id = str(parallel_node.get('id'))
+        branch_edges = outgoing.get(parallel_id, [])
+
+        # Filter out non-control-flow edges (memory/tool nodes)
+        branch_edges = [
+            e for e in branch_edges
+            if node_by_id.get(str(e.get('target')), {}).get('type') not in ('memory', 'tool')
+        ]
+
+        logger.info(f"[Parallel Execution] Starting {len(branch_edges)} branches in parallel")
+
+        branch_status: Dict[str, str] = {}
+
+        def push_status():
+            try:
+                self._update_cache(parallelStatus=branch_status)
+            except Exception:
+                # Cache update shouldn't break execution
+                pass
+
+        # Create tasks for each branch
+        branch_tasks = []
+        for idx, edge in enumerate(branch_edges):
+            branch_target_id = str(edge.get('target'))
+            branch_node = node_by_id.get(branch_target_id)
+
+            if not branch_node:
+                continue
+
+            # Clone context for this branch (each branch gets independent context)
+            branch_context = {
+                'input': context.get('input'),
+                'params': context.get('params', {}),
+                'condition': context.get('condition', False),
+                'state': dict(context.get('state', {})),  # Shallow copy of state
+            }
+
+            branch_id = f"{parallel_id}_branch_{idx}"
+            branch_status[branch_id] = 'queued'
+
+            # Create Celery task signature for this branch
+            task_sig = execute_branch_task.s(
+                branch_id=branch_id,
+                start_node=branch_node,
+                context=branch_context,
+                outgoing=outgoing,
+                node_by_id=node_by_id,
+                edges=edges,
+                max_steps=remaining_steps,
+                execution_id=getattr(self, 'execution_id', None),
+            )
+            branch_tasks.append(task_sig)
+
+        push_status()
+
+        # Execute all branches in parallel using Celery group
+        if branch_tasks:
+            logger.info(f"[Parallel Execution] Dispatching {len(branch_tasks)} tasks to Celery")
+            job = group(branch_tasks)
+            try:
+                result = job.apply_async()
+
+                # If at least one worker responds, mark branches as running
+                try:
+                    inspector = execute_branch_task.app.control.inspect()
+                    active = inspector.active() or {}
+                    reserved = inspector.reserved() or {}
+                    if active or reserved:
+                        for bid in branch_status:
+                            branch_status[bid] = 'running'
+                        push_status()
+                except Exception:
+                    # If inspect fails, fall back to leaving them queued
+                    pass
+
+                # Wait for all branches to complete
+                logger.info(f"[Parallel Execution] Waiting for parallel branches to complete...")
+                # Explicitly allow synchronous subtask joining inside a Celery task
+                branch_results = result.get(timeout=300, disable_sync_subtasks=False)  # 5 minute timeout
+                logger.info(f"[Parallel Execution] All {len(branch_results)} branches completed")
+            except Exception as exc:
+                logger.error(f"[Parallel Execution] Failed to dispatch/collect parallel branches: {exc}")
+                for bid in branch_status:
+                    branch_status[bid] = 'error'
+                push_status()
+                return [], [{'status': 'error', 'error': str(exc)}]
+        else:
+            branch_results = []
+
+        # Collect results and traces
+        results = []
+        trace = []
+
+        for branch_result in branch_results:
+            branch_id = branch_result.get('branch_id')
+            branch_status[branch_id] = branch_result.get('status', 'error')
+
+            if branch_result.get('status') == 'ok':
+                results.append(branch_result.get('final_output'))
+                trace.extend(branch_result.get('trace', []))
+            else:
+                # Branch failed, add None result
+                results.append(None)
+                logger.error(f"[Parallel Execution] Branch {branch_id} failed: {branch_result.get('error')}")
+
+        # Any branch that never reported (e.g., task never started) stays queued
+
+        push_status()
+
+        return results, trace
