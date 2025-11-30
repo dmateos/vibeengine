@@ -36,6 +36,7 @@ import JoinNode from './nodes/JoinNode'
 import ConsensusNode from './nodes/ConsensusNode'
 import ConversationNode from './nodes/ConversationNode'
 import TCPOutputNode from './nodes/TCPOutputNode'
+import PythonCodeNode from './nodes/PythonCodeNode'
 import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
 import { useAuth } from '../contexts/AuthContext'
@@ -77,6 +78,7 @@ const nodeTypes = {
   condition: ConditionNode,
   json_validator: ValidatorNode,
   text_transform: TextTransformNode,
+  python_code: PythonCodeNode,
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
@@ -1310,6 +1312,60 @@ function FlowDiagram() {
                       />
                     </div>
                   )}
+                </>
+              )}
+
+              {/* Python Code Node */}
+              {selectedNode.type === 'python_code' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Timeout (seconds):</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={(selectedNode.data as any)?.timeout ?? 10}
+                      onChange={(e) => {
+                        const timeout = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), timeout } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), timeout } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Python Code:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.code ?? 'import sys\ntext = sys.stdin.read()\nprint(text)'}
+                      onChange={(e) => {
+                        const code = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), code } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), code } } : prev))
+                      }}
+                      rows={8}
+                      style={{
+                        width: '100%',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                        background: '#0b1220',
+                        color: '#e5e7eb',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: '1px solid #1f2937',
+                      }}
+                      placeholder="Write Python that reads from stdin and prints output..."
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      stdin receives the incoming context.input; stdout becomes this node&apos;s output.
+                    </small>
+                  </div>
                 </>
               )}
 

@@ -145,6 +145,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Transform text with replace, regex, filter, split, and more',
         'category': 'Data',
     },
+    'python_code': {
+        'display_name': 'Python Code',
+        'icon': '🐍',
+        'color': '#0ea5e9',
+        'description': 'Run Python code with stdin from the current input',
+        'category': 'Data',
+    },
 
     # Network/Output
     'tcp_output': {

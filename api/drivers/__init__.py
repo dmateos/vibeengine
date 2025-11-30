@@ -18,6 +18,7 @@ from .text_transform import TextTransformDriver
 from .consensus import ConsensusDriver
 from .conversation import ConversationDriver
 from .tcp_output import TCPOutputDriver
+from .python_code import PythonCodeDriver
 
 
 # Registry of all available drivers
@@ -40,6 +41,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     ConsensusDriver.type: ConsensusDriver(),
     ConversationDriver.type: ConversationDriver(),
     TCPOutputDriver.type: TCPOutputDriver(),
+    PythonCodeDriver.type: PythonCodeDriver(),
 }
 
 
@@ -91,6 +93,7 @@ __all__ = [
     "ConsensusDriver",
     "ConversationDriver",
     "TCPOutputDriver",
+    "PythonCodeDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]
