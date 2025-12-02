@@ -20,6 +20,7 @@ from .consensus import ConsensusDriver
 from .conversation import ConversationDriver
 from .tcp_output import TCPOutputDriver
 from .python_code import PythonCodeDriver
+from .ssh_command import SSHCommandDriver
 
 
 # Registry of all available drivers
@@ -44,6 +45,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     ConversationDriver.type: ConversationDriver(),
     TCPOutputDriver.type: TCPOutputDriver(),
     PythonCodeDriver.type: PythonCodeDriver(),
+    SSHCommandDriver.type: SSHCommandDriver(),
 }
 
 
@@ -97,6 +99,7 @@ __all__ = [
     "ConversationDriver",
     "TCPOutputDriver",
     "PythonCodeDriver",
+    "SSHCommandDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]

@@ -159,6 +159,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Run Python code with stdin from the current input',
         'category': 'Data',
     },
+    'ssh_command': {
+        'display_name': 'SSH Command',
+        'icon': '🔐',
+        'color': '#059669',
+        'description': 'Execute commands on remote servers via SSH',
+        'category': 'Data',
+    },
 
     # Network/Output
     'tcp_output': {

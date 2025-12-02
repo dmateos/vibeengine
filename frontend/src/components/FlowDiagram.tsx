@@ -40,6 +40,7 @@ import ConsensusNode from './nodes/ConsensusNode'
 import ConversationNode from './nodes/ConversationNode'
 import TCPOutputNode from './nodes/TCPOutputNode'
 import PythonCodeNode from './nodes/PythonCodeNode'
+import SSHCommandNode from './nodes/SSHCommandNode'
 import CronTriggerNode from './nodes/CronTriggerNode'
 import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
@@ -84,6 +85,7 @@ const nodeTypes = {
   json_validator: ValidatorNode,
   text_transform: TextTransformNode,
   python_code: PythonCodeNode,
+  ssh_command: SSHCommandNode,
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
@@ -1706,6 +1708,168 @@ function FlowDiagram() {
                     />
                     <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
                       Implement <code>def_main(text: str)</code>. Incoming <code>context.input</code> is passed as <code>text</code>; the return value becomes this node&apos;s output (dict/list is JSON-serialized).
+                    </small>
+                  </div>
+                </>
+              )}
+
+              {/* SSH Command Node */}
+              {selectedNode.type === 'ssh_command' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Host:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.host ?? ''}
+                      onChange={(e) => {
+                        const host = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), host } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), host } } : prev))
+                      }}
+                      placeholder="example.com or 192.168.1.1"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Port:</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      value={(selectedNode.data as any)?.port ?? 22}
+                      onChange={(e) => {
+                        const port = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), port } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), port } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Username:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.username ?? ''}
+                      onChange={(e) => {
+                        const username = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), username } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), username } } : prev))
+                      }}
+                      placeholder="root"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Password:</strong>
+                    <input
+                      type="password"
+                      value={(selectedNode.data as any)?.password ?? ''}
+                      onChange={(e) => {
+                        const password = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), password } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), password } } : prev))
+                      }}
+                      placeholder="Leave empty to use SSH key"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>SSH Key Path:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.key_filename ?? ''}
+                      onChange={(e) => {
+                        const key_filename = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), key_filename } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), key_filename } } : prev))
+                      }}
+                      placeholder="/path/to/id_rsa or ~/.ssh/id_ed25519"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Optional. If empty, uses SSH agent or password.
+                    </small>
+                  </div>
+                  <div className="detail-item">
+                    <strong>Command:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.command ?? ''}
+                      onChange={(e) => {
+                        const command = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), command } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), command } } : prev))
+                      }}
+                      placeholder="ls -la"
+                      rows={4}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Command to execute on remote server. Use <code>context.input</code> via stdin if needed.
+                    </small>
+                  </div>
+                  <div className="detail-item">
+                    <strong>Timeout (seconds):</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={(selectedNode.data as any)?.timeout ?? 30}
+                      onChange={(e) => {
+                        const timeout = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), timeout } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), timeout } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <strong>Debug Mode:</strong>
+                    <label style={{ display: 'flex', alignItems: 'center', marginLeft: 6, gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={(selectedNode.data as any)?.debug ?? false}
+                        onChange={(e) => {
+                          const debug = e.target.checked
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), debug } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), debug } } : prev))
+                        }}
+                      />
+                      <span>Enable debug logging</span>
+                    </label>
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Shows connection details and command execution info in response.
                     </small>
                   </div>
                 </>
