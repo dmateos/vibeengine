@@ -32,6 +32,13 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Flow output node',
         'category': 'Input/Output',
     },
+    'cron_trigger': {
+        'display_name': 'Cron Trigger',
+        'icon': '⏰',
+        'color': '#10b981',
+        'description': 'Schedule workflow execution using cron expressions',
+        'category': 'Input/Output',
+    },
 
     # Agents
     'openai_agent': {

@@ -9,6 +9,7 @@ from .router import RouterDriver
 from .condition import ConditionDriver
 from .input import InputDriver
 from .output import OutputDriver
+from .cron_trigger import CronTriggerDriver
 from .memory import MemoryDriver
 from .parallel import ParallelDriver
 from .join import JoinDriver
@@ -33,6 +34,7 @@ DRIVERS: Dict[str, BaseDriver] = {
     ConditionDriver.type: ConditionDriver(),
     InputDriver.type: InputDriver(),
     OutputDriver.type: OutputDriver(),
+    CronTriggerDriver.type: CronTriggerDriver(),
     MemoryDriver.type: MemoryDriver(),
     ParallelDriver.type: ParallelDriver(),
     JoinDriver.type: JoinDriver(),
@@ -85,6 +87,7 @@ __all__ = [
     "ConditionDriver",
     "InputDriver",
     "OutputDriver",
+    "CronTriggerDriver",
     "MemoryDriver",
     "ParallelDriver",
     "JoinDriver",

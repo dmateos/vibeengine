@@ -715,6 +715,35 @@
   opacity: 0.8;
 }
 
+/* Cron Trigger Node */
+.cron-trigger-node {
+  background: var(--card-bg) !important;
+  border: 2px solid #10b981 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2) !important;
+}
+
+.cron-trigger-node:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  border-color: #059669;
+}
+
+.cron-trigger-node .node-icon {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-size: 1.5rem;
+}
+
+.cron-trigger-node .node-label {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.cron-trigger-node .node-type {
+  color: #10b981;
+  opacity: 0.8;
+}
+
 /* OpenAI Agent Node */
 .openai-agent-node {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
@@ -821,8 +850,14 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
+:root[data-theme="dark"] .cron-trigger-node {
+  background: var(--card-bg) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
 :root[data-theme="dark"] .trigger-node .node-label,
-:root[data-theme="dark"] .output-node .node-label {
+:root[data-theme="dark"] .output-node .node-label,
+:root[data-theme="dark"] .cron-trigger-node .node-label {
   opacity: 0.95;
 }
 

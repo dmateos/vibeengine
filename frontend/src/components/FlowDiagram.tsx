@@ -40,6 +40,7 @@ import ConsensusNode from './nodes/ConsensusNode'
 import ConversationNode from './nodes/ConversationNode'
 import TCPOutputNode from './nodes/TCPOutputNode'
 import PythonCodeNode from './nodes/PythonCodeNode'
+import CronTriggerNode from './nodes/CronTriggerNode'
 import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
 import { useAuth } from '../contexts/AuthContext'
@@ -70,6 +71,7 @@ interface Workflow {
 const nodeTypes = {
   input: InputNode,
   output: OutputNode,
+  cron_trigger: CronTriggerNode,
   agent: AgentNode,
   openai_agent: OpenAIAgentNode,
   claude_agent: ClaudeAgentNode,
@@ -124,6 +126,8 @@ function FlowDiagram() {
   const [showOutputPanel, setShowOutputPanel] = useState(false)
   const [outputPanelHeight, setOutputPanelHeight] = useState(240)
   const [isResizingOutput, setIsResizingOutput] = useState(false)
+  const [schedules, setSchedules] = useState<any[]>([])
+  const [loadingSchedules, setLoadingSchedules] = useState(false)
 
   // Use ref to track previous non-node tab to avoid stale closures
   const previousTabRef = useRef<'history'>('history')
@@ -367,6 +371,73 @@ function FlowDiagram() {
     try {
       localStorage.setItem('lastWorkflowId', String(workflow.id))
     } catch {}
+    // Load schedules for this workflow
+    loadSchedules(workflow.id)
+  }
+
+  const loadSchedules = async (workflowId: number) => {
+    if (!token) return
+    setLoadingSchedules(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/workflows/${workflowId}/schedules/`, {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSchedules(data)
+      }
+    } catch (error) {
+      console.error('Failed to load schedules:', error)
+    } finally {
+      setLoadingSchedules(false)
+    }
+  }
+
+  const syncSchedules = async (workflowId: number) => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_BASE_URL}/workflows/${workflowId}/sync-schedules/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      })
+      if (response.ok) {
+        const result = await response.json()
+        showToast(`Synced: ${result.created} created, ${result.updated} updated, ${result.deactivated} deactivated`, 'success')
+        // Reload schedules
+        await loadSchedules(workflowId)
+      }
+    } catch (error) {
+      console.error('Failed to sync schedules:', error)
+      showToast('Failed to sync schedules', 'error')
+    }
+  }
+
+  const toggleScheduleActive = async (scheduleId: number, isActive: boolean) => {
+    if (!token || !currentWorkflow) return
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/workflows/${currentWorkflow.id}/schedules/${scheduleId}/toggle/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Token ${token}`,
+          },
+          body: JSON.stringify({ is_active: isActive }),
+        }
+      )
+      if (response.ok) {
+        showToast(isActive ? 'Schedule activated' : 'Schedule deactivated', 'success')
+        await loadSchedules(currentWorkflow.id)
+      }
+    } catch (error) {
+      console.error('Failed to toggle schedule:', error)
+      showToast('Failed to toggle schedule', 'error')
+    }
   }
 
   const saveWorkflow = async () => {
@@ -403,6 +474,8 @@ function FlowDiagram() {
       setCurrentWorkflow(savedWorkflow)
       await loadWorkflows()
       showToast('Workflow saved successfully!', 'success')
+      // Auto-sync schedules for cron_trigger nodes
+      await syncSchedules(savedWorkflow.id)
       try {
         localStorage.setItem('lastWorkflowId', String(savedWorkflow.id))
       } catch {}
@@ -1107,6 +1180,233 @@ function FlowDiagram() {
                     placeholder="Default input used if run input is blank"
                   />
                 </div>
+              )}
+
+              {/* Cron Trigger Node */}
+              {selectedNode.type === 'cron_trigger' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Cron Expression:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.cronExpression ?? ''}
+                      onChange={(e) => {
+                        const cronExpression = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), cronExpression } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), cronExpression } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                      placeholder="0 9 * * *"
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Format: minute hour day month weekday
+                    </small>
+                  </div>
+
+                  {/* Cron Presets */}
+                  <div className="detail-item">
+                    <strong>Quick Presets:</strong>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      {[
+                        { label: 'Every minute', value: '* * * * *' },
+                        { label: 'Every hour', value: '0 * * * *' },
+                        { label: 'Daily 9am', value: '0 9 * * *' },
+                        { label: 'Daily midnight', value: '0 0 * * *' },
+                        { label: 'Every Monday', value: '0 9 * * MON' },
+                        { label: 'Every 15min', value: '*/15 * * * *' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.value}
+                          onClick={() => {
+                            const cronExpression = preset.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), cronExpression } } : n
+                              )
+                            )
+                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), cronExpression } } : prev))
+                          }}
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            fontSize: '0.75rem',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            background: 'var(--bg-tertiary)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'var(--bg-secondary)'
+                            e.currentTarget.style.borderColor = '#10b981'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'var(--bg-tertiary)'
+                            e.currentTarget.style.borderColor = 'var(--border-color)'
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Timezone Selector */}
+                  <div className="detail-item">
+                    <strong>Timezone:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.timezone ?? 'UTC'}
+                      onChange={(e) => {
+                        const timezone = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), timezone } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), timezone } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6, padding: '0.5rem' }}
+                    >
+                      <option value="UTC">UTC</option>
+                      <option value="America/New_York">America/New_York (EST/EDT)</option>
+                      <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                      <option value="America/Denver">America/Denver (MST/MDT)</option>
+                      <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                      <option value="Europe/London">Europe/London (GMT/BST)</option>
+                      <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                      <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                      <option value="Australia/Sydney">Australia/Sydney (AEDT/AEST)</option>
+                    </select>
+                  </div>
+
+                  {/* Initial Input */}
+                  <div className="detail-item">
+                    <strong>Initial Input (JSON):</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.initialInput ? JSON.stringify((selectedNode.data as any).initialInput, null, 2) : '{}'}
+                      onChange={(e) => {
+                        try {
+                          const initialInput = JSON.parse(e.target.value)
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), initialInput } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), initialInput } } : prev))
+                        } catch (err) {
+                          // Invalid JSON, ignore
+                        }
+                      }}
+                      style={{ width: '100%', marginLeft: 6, minHeight: 60, fontFamily: 'monospace', fontSize: '0.85rem' }}
+                      placeholder='{"key": "value"}'
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Optional data to pass to the workflow when triggered
+                    </small>
+                  </div>
+
+                  {/* Help Text */}
+                  <div style={{
+                    padding: '0.75rem',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    borderRadius: '8px',
+                    marginTop: '1rem',
+                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                  }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.5rem', fontWeight: 600 }}>
+                      📅 Cron Format Help
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      <code style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px' }}>
+                        * * * * *
+                      </code>
+                      <br />
+                      <code style={{ color: '#10b981' }}>│ │ │ │ │</code>
+                      <br />
+                      <code style={{ color: '#10b981' }}>│ │ │ │ └─</code> Day of week (0-6, SUN-SAT)
+                      <br />
+                      <code style={{ color: '#10b981' }}>│ │ │ └───</code> Month (1-12)
+                      <br />
+                      <code style={{ color: '#10b981' }}>│ │ └─────</code> Day of month (1-31)
+                      <br />
+                      <code style={{ color: '#10b981' }}>│ └───────</code> Hour (0-23)
+                      <br />
+                      <code style={{ color: '#10b981' }}>└─────────</code> Minute (0-59)
+                    </div>
+                  </div>
+
+                  {/* Schedule Status */}
+                  {(() => {
+                    const nodeSchedule = schedules.find(s => s.cron_node_id === selectedNode.id)
+                    return (
+                      <div style={{
+                        padding: '0.75rem',
+                        background: nodeSchedule?.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                        borderRadius: '8px',
+                        marginTop: '1rem',
+                        border: `1px solid ${nodeSchedule?.is_active ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`
+                      }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.5rem', fontWeight: 600 }}>
+                          {nodeSchedule ? (nodeSchedule.is_active ? '✅ Schedule Active' : '⏸️ Schedule Inactive') : '📝 Schedule Not Created'}
+                        </div>
+
+                        {nodeSchedule && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                            {nodeSchedule.is_active && nodeSchedule.next_run && (
+                              <div style={{ marginBottom: '0.5rem' }}>
+                                <strong>Next run:</strong> {new Date(nodeSchedule.next_run).toLocaleString()}
+                              </div>
+                            )}
+                            {nodeSchedule.last_run && (
+                              <div>
+                                <strong>Last run:</strong> {new Date(nodeSchedule.last_run).toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={async () => {
+                            if (!currentWorkflow) return
+                            if (nodeSchedule) {
+                              // Toggle existing schedule
+                              await toggleScheduleActive(nodeSchedule.id, !nodeSchedule.is_active)
+                            } else {
+                              // Create schedule first via sync
+                              await syncSchedules(currentWorkflow.id)
+                              showToast('Schedule created! Click again to activate.', 'info')
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '0.6rem',
+                            fontSize: '0.85rem',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            background: nodeSchedule?.is_active ? '#ef4444' : '#10b981',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '0.9'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '1'
+                          }}
+                        >
+                          {nodeSchedule ? (nodeSchedule.is_active ? 'Deactivate Schedule' : 'Activate Schedule') : 'Create Schedule'}
+                        </button>
+                      </div>
+                    )
+                  })()}
+                </>
               )}
 
               {/* AI Agent Nodes (OpenAI, Claude, Ollama) */}

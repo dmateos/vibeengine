@@ -21,5 +21,12 @@ urlpatterns = [
     path('workflows/<int:workflow_id>/trigger/', views.trigger_workflow, name='trigger_workflow'),
     path('workflows/<int:workflow_id>/regenerate-api-key/', views.regenerate_api_key, name='regenerate_api_key'),
     path('workflows/<int:workflow_id>/executions/', views.workflow_executions, name='workflow_executions'),
+
+    # Workflow Schedule endpoints
+    path('workflows/<int:workflow_id>/schedules/', views.workflow_schedules, name='workflow_schedules'),
+    path('workflows/<int:workflow_id>/schedules/<int:schedule_id>/', views.workflow_schedule_detail, name='workflow_schedule_detail'),
+    path('workflows/<int:workflow_id>/schedules/<int:schedule_id>/toggle/', views.toggle_workflow_schedule, name='toggle_workflow_schedule'),
+    path('workflows/<int:workflow_id>/sync-schedules/', views.sync_workflow_schedules, name='sync_workflow_schedules'),
+
     path('', include(router.urls)),
 ]

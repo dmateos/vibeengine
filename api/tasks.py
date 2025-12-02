@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 from celery import shared_task
 from django.core.cache import cache
 from .orchestration.polling_executor import PollingExecutor
-from .models import WorkflowExecution
+from .models import WorkflowExecution, WorkflowSchedule
 
 logger = logging.getLogger(__name__)
 
@@ -189,3 +189,72 @@ def execute_branch_task(
             'status': 'error',
             'error': str(e)
         }
+
+
+@shared_task(name='api.check_scheduled_workflows')
+def check_and_execute_scheduled_workflows():
+    """
+    Check for workflows due to run and execute them.
+    This task runs every minute via Celery Beat.
+    """
+    from croniter import croniter
+    from datetime import datetime, timezone as tz
+    import pytz
+    import uuid
+
+    logger.info("[Scheduler] Checking for scheduled workflows...")
+
+    now = datetime.now(tz.utc)
+
+    # Find all active schedules that are due
+    schedules = WorkflowSchedule.objects.filter(
+        is_active=True,
+        next_run__lte=now
+    ).select_related('workflow')
+
+    logger.info(f"[Scheduler] Found {schedules.count()} schedules due to run")
+
+    for schedule in schedules:
+        try:
+            workflow = schedule.workflow
+            logger.info(f"[Scheduler] Executing workflow '{workflow.name}' (ID: {workflow.id}) - Schedule: {schedule.cron_expression}")
+
+            # Create execution record
+            execution_id = str(uuid.uuid4())
+            execution_record = WorkflowExecution.objects.create(
+                workflow=workflow,
+                execution_id=execution_id,
+                input_data='{}',
+                status='running',
+                triggered_by='scheduled'
+            )
+
+            # Execute workflow asynchronously
+            execute_workflow_task.delay(
+                execution_id=execution_id,
+                nodes=workflow.nodes,
+                edges=workflow.edges,
+                context={'input': {}, 'state': {}, 'params': {}},
+                start_node_id=schedule.cron_node_id,
+                workflow_execution_id=execution_record.id
+            )
+
+            # Update schedule
+            schedule.last_run = now
+
+            # Calculate next run using user's timezone
+            user_tz = pytz.timezone(schedule.timezone)
+            now_in_tz = now.astimezone(user_tz)
+            cron = croniter(schedule.cron_expression, now_in_tz)
+            next_run_in_tz = cron.get_next(datetime)
+            schedule.next_run = next_run_in_tz.astimezone(tz.utc)
+            schedule.save()
+
+            logger.info(f"[Scheduler] Workflow '{workflow.name}' scheduled - Execution ID: {execution_id}, Next run: {schedule.next_run}")
+
+        except Exception as e:
+            logger.error(f"[Scheduler] Error executing scheduled workflow {schedule.id}: {str(e)}")
+            # Continue with other schedules even if one fails
+            continue
+
+    logger.info("[Scheduler] Finished checking scheduled workflows")

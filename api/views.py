@@ -5,8 +5,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import Workflow, WorkflowExecution
-from .serializers import WorkflowSerializer
+from .models import Workflow, WorkflowExecution, WorkflowSchedule
+from .serializers import WorkflowSerializer, WorkflowScheduleSerializer
 from rest_framework import status
 from .drivers import execute_node_by_type
 from .orchestration import WorkflowExecutor, PollingExecutor
@@ -594,3 +594,204 @@ def workflow_executions(request, workflow_id):
         'count': total_count,
         'results': results
     }, status=status.HTTP_200_OK)
+
+
+# Workflow Schedule endpoints
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def workflow_schedules(request, workflow_id):
+    """Get all schedules or create a new schedule for a workflow."""
+    from croniter import croniter
+    from datetime import datetime
+    import pytz
+    from django.shortcuts import get_object_or_404
+
+    workflow = get_object_or_404(Workflow, id=workflow_id, owner=request.user)
+
+    if request.method == 'GET':
+        schedules = workflow.schedules.all()
+        serializer = WorkflowScheduleSerializer(schedules, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        cron_node_id = request.data.get('cron_node_id')
+        cron_expression = request.data.get('cron_expression')
+        timezone_str = request.data.get('timezone', 'UTC')
+
+        if not cron_node_id or not cron_expression:
+            return Response({
+                'error': 'cron_node_id and cron_expression are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate cron expression
+        try:
+            croniter(cron_expression)
+        except Exception as e:
+            return Response({
+                'error': f'Invalid cron expression: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate timezone
+        try:
+            user_tz = pytz.timezone(timezone_str)
+        except Exception:
+            return Response({
+                'error': f'Invalid timezone: {timezone_str}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Calculate next run
+        now = datetime.now(user_tz)
+        cron = croniter(cron_expression, now)
+        next_run = cron.get_next(datetime).astimezone(pytz.utc)
+
+        # Create or update schedule
+        schedule, created = WorkflowSchedule.objects.update_or_create(
+            workflow=workflow,
+            cron_node_id=cron_node_id,
+            defaults={
+                'cron_expression': cron_expression,
+                'timezone': timezone_str,
+                'next_run': next_run,
+                'is_active': True
+            }
+        )
+
+        serializer = WorkflowScheduleSerializer(schedule)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['GET', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def workflow_schedule_detail(request, workflow_id, schedule_id):
+    """Get or delete a specific schedule."""
+    from django.shortcuts import get_object_or_404
+
+    workflow = get_object_or_404(Workflow, id=workflow_id, owner=request.user)
+    schedule = get_object_or_404(WorkflowSchedule, id=schedule_id, workflow=workflow)
+
+    if request.method == 'GET':
+        serializer = WorkflowScheduleSerializer(schedule)
+        return Response(serializer.data)
+
+    elif request.method == 'DELETE':
+        schedule.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def toggle_workflow_schedule(request, workflow_id, schedule_id):
+    """Enable/disable a schedule without deleting it."""
+    from django.shortcuts import get_object_or_404
+
+    workflow = get_object_or_404(Workflow, id=workflow_id, owner=request.user)
+    schedule = get_object_or_404(WorkflowSchedule, id=schedule_id, workflow=workflow)
+
+    is_active = request.data.get('is_active')
+    if is_active is None:
+        return Response({
+            'error': 'is_active field is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    schedule.is_active = is_active
+    schedule.save()
+
+    serializer = WorkflowScheduleSerializer(schedule)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def sync_workflow_schedules(request, workflow_id):
+    """
+    Auto-sync schedules based on cron_trigger nodes in the workflow.
+    Creates/updates schedules for all cron_trigger nodes (inactive by default).
+    Deactivates schedules for deleted nodes.
+    """
+    from django.shortcuts import get_object_or_404
+    from croniter import croniter
+    from datetime import datetime
+    import pytz
+
+    workflow = get_object_or_404(Workflow, id=workflow_id, owner=request.user)
+
+    # Find all cron_trigger nodes in the workflow
+    cron_nodes = [node for node in workflow.nodes if node.get('type') == 'cron_trigger']
+    cron_node_ids = {node['id'] for node in cron_nodes}
+
+    created_count = 0
+    updated_count = 0
+    deactivated_count = 0
+
+    # Create/update schedules for each cron_trigger node
+    for node in cron_nodes:
+        node_id = node['id']
+        node_data = node.get('data', {})
+        cron_expression = node_data.get('cronExpression', '')
+        timezone_str = node_data.get('timezone', 'UTC')
+
+        # Skip if no cron expression is set
+        if not cron_expression:
+            continue
+
+        # Validate cron expression
+        try:
+            croniter(cron_expression)
+        except Exception:
+            continue  # Skip invalid cron expressions
+
+        # Validate timezone
+        try:
+            user_tz = pytz.timezone(timezone_str)
+        except Exception:
+            timezone_str = 'UTC'
+            user_tz = pytz.utc
+
+        # Calculate next run
+        now = datetime.now(user_tz)
+        cron = croniter(cron_expression, now)
+        next_run = cron.get_next(datetime).astimezone(pytz.utc)
+
+        # Check if schedule already exists to preserve is_active status
+        try:
+            existing_schedule = WorkflowSchedule.objects.get(
+                workflow=workflow,
+                cron_node_id=node_id
+            )
+            existing_is_active = existing_schedule.is_active
+        except WorkflowSchedule.DoesNotExist:
+            existing_is_active = False  # New schedules are inactive by default
+
+        # Create or update schedule
+        schedule, created = WorkflowSchedule.objects.update_or_create(
+            workflow=workflow,
+            cron_node_id=node_id,
+            defaults={
+                'cron_expression': cron_expression,
+                'timezone': timezone_str,
+                'next_run': next_run,
+                'is_active': existing_is_active
+            }
+        )
+
+        if created:
+            created_count += 1
+        else:
+            updated_count += 1
+
+    # Deactivate schedules for nodes that no longer exist
+    orphaned_schedules = WorkflowSchedule.objects.filter(
+        workflow=workflow,
+        is_active=True
+    ).exclude(cron_node_id__in=cron_node_ids)
+
+    deactivated_count = orphaned_schedules.count()
+    orphaned_schedules.update(is_active=False)
+
+    return Response({
+        'status': 'success',
+        'created': created_count,
+        'updated': updated_count,
+        'deactivated': deactivated_count,
+        'total_schedules': WorkflowSchedule.objects.filter(workflow=workflow).count()
+    })

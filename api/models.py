@@ -71,3 +71,26 @@ class WorkflowExecution(models.Model):
 
     def __str__(self):
         return f"{self.workflow.name} - {self.execution_id[:8]} - {self.status}"
+
+
+class WorkflowSchedule(models.Model):
+    """Persistent cron schedules for workflows."""
+    workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='schedules')
+    cron_node_id = models.CharField(max_length=255)  # Which cron_trigger node
+    cron_expression = models.CharField(max_length=100)  # "0 9 * * *"
+    timezone = models.CharField(max_length=50, default='UTC')
+    is_active = models.BooleanField(default=True)
+    last_run = models.DateTimeField(null=True, blank=True)
+    next_run = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['workflow', 'cron_node_id']
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_active', 'next_run']),
+        ]
+
+    def __str__(self):
+        return f"{self.workflow.name} - {self.cron_expression}"
