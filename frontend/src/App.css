@@ -6,16 +6,16 @@
 }
 
 .header {
-  background: linear-gradient(135deg, #6b21a8 0%, #9333ea 30%, #c026d3 60%, #e879f9 100%);
+  background: linear-gradient(135deg, #047857 0%, #10b981 30%, #14b8a6 60%, #22c55e 100%);
   background-size: 200% 200%;
   animation: gradient-shift 8s ease infinite;
   color: white;
-  box-shadow: 0 4px 24px rgba(147, 51, 234, 0.4), 0 0 100px rgba(168, 85, 247, 0.3);
+  box-shadow: 0 4px 24px rgba(16, 185, 129, 0.4), 0 0 100px rgba(34, 197, 94, 0.3);
   position: sticky;
   top: 0;
   z-index: 100;
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 @keyframes gradient-shift {

@@ -57,8 +57,8 @@
 
 .workflow-name-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .workflow-status {
@@ -119,8 +119,8 @@
 
 .toolbar-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
 }
 
 .toolbar-input::placeholder {
@@ -169,7 +169,7 @@
 }
 
 .dropdown-category-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
 }
 
 .submenu-arrow {
@@ -247,12 +247,12 @@
 }
 
 .dropdown-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
 }
 
 .dropdown-item.trigger:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
-  color: #667eea;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+  color: #10b981;
 }
 
 .dropdown-item.action:hover {
@@ -282,22 +282,22 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+  background: linear-gradient(135deg, #10b981 0%, #5568d3 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
   font-weight: 600;
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, #5568d3 0%, #4c51bf 100%);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
   transform: translateY(-1px);
 }
 
 .btn-secondary {
   background: var(--card-bg);
-  color: #667eea;
-  border: 1.5px solid #667eea;
+  color: #10b981;
+  border: 1.5px solid #10b981;
 }
 
 .btn-secondary:hover {
@@ -318,14 +318,14 @@
 }
 
 .btn-primary:disabled:hover {
-  background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #10b981 0%, #5568d3 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
   transform: none;
 }
 
 .btn-secondary:disabled:hover {
   background: var(--card-bg);
-  border-color: #667eea;
+  border-color: #10b981;
 }
 
 /* New Button Styles */
@@ -343,8 +343,8 @@
 
 .btn-outline:hover {
   background: var(--bg-secondary);
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #10b981;
+  color: #10b981;
 }
 
 .btn-tool {
@@ -362,8 +362,8 @@
 
 .btn-tool:hover {
   background: var(--bg-secondary);
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #10b981;
+  color: #10b981;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -415,7 +415,7 @@
 
 :root[data-theme="dark"] .btn-tool:hover {
   background: #2d3748;
-  border-color: #667eea;
+  border-color: #10b981;
 }
 
 :root[data-theme="dark"] .btn-tool.btn-danger:hover {
@@ -458,10 +458,10 @@
 }
 
 .workflow-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.05) 100%);
+  border-color: #10b981;
   transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }
 
 .workflow-item-content {
@@ -550,8 +550,8 @@
 }
 
 .sidebar-tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: #10b981;
+  border-bottom-color: #10b981;
   background: var(--bg-secondary);
 }
 
@@ -617,8 +617,8 @@
 }
 
 .custom-node.selected {
-  border-color: #667eea;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  border-color: #10b981;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
 }
 
 .node-icon {
@@ -660,29 +660,29 @@
 /* Trigger Node (Input) */
 .trigger-node {
   background: var(--card-bg) !important;
-  border: 2px solid #667eea !important;
+  border: 2px solid #10b981 !important;
   border-radius: 16px !important;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2) !important;
 }
 
 .trigger-node:hover {
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
-  border-color: #764ba2;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  border-color: #059669;
 }
 
 .trigger-node .node-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   font-size: 1.5rem;
 }
 
 .trigger-node .node-label {
-  color: #667eea;
+  color: #10b981;
   font-weight: 700;
 }
 
 .trigger-node .node-type {
-  color: #667eea;
+  color: #10b981;
   opacity: 0.8;
 }
 
@@ -890,7 +890,7 @@
 /* Improve styling in dark mode */
 :root[data-theme="dark"] .trigger-node {
   background: var(--card-bg) !important;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 :root[data-theme="dark"] .output-node {
@@ -979,7 +979,7 @@
   margin: 0 0 1.25rem 0;
   font-size: 1.25rem;
   color: var(--text-primary);
-  border-bottom: 2px solid #667eea;
+  border-bottom: 2px solid #10b981;
   padding-bottom: 0.75rem;
   font-weight: 600;
 }
@@ -1024,27 +1024,27 @@
 .react-flow__handle {
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: 3px solid var(--bg-secondary);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4), 0 0 0 0 rgba(102, 126, 234, 0.5);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4), 0 0 0 0 rgba(16, 185, 129, 0.5);
   transition: all 0.3s ease;
   animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%, 100% {
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4), 0 0 0 0 rgba(102, 126, 234, 0.5);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4), 0 0 0 0 rgba(16, 185, 129, 0.5);
   }
   50% {
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4), 0 0 0 8px rgba(102, 126, 234, 0);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4), 0 0 0 8px rgba(16, 185, 129, 0);
   }
 }
 
 .react-flow__handle:hover {
   width: 24px;
   height: 24px;
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(102, 126, 234, 0.2);
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6), 0 0 0 4px rgba(16, 185, 129, 0.2);
   animation: none;
 }
 
@@ -1072,12 +1072,12 @@
 }
 
 .react-flow__edge:hover .react-flow__edge-path {
-  stroke: #667eea;
+  stroke: #10b981;
   stroke-width: 3;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke: #667eea;
+  stroke: #10b981;
   stroke-width: 3.5;
 }
 
@@ -1118,7 +1118,7 @@
 }
 
 .react-flow__controls-button:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
 .react-flow__controls-button svg {
