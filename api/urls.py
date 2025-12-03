@@ -6,6 +6,9 @@ router = DefaultRouter()
 router.register(r'workflows', views.WorkflowViewSet, basename='workflow')
 
 urlpatterns = [
+    # Health check
+    path('health/', views.health_check, name='health_check'),
+
     # Authentication endpoints
     path('auth/register/', views.register_user, name='register_user'),
     path('auth/login/', views.login_user, name='login_user'),

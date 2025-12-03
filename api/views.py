@@ -795,3 +795,11 @@ def sync_workflow_schedules(request, workflow_id):
         'deactivated': deactivated_count,
         'total_schedules': WorkflowSchedule.objects.filter(workflow=workflow).count()
     })
+
+# Health check endpoint for Docker
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Simple health check endpoint for Docker healthcheck."""
+    return Response({'status': 'healthy', 'service': 'vibeengine-api'}, status=status.HTTP_200_OK)
+

@@ -21,7 +21,8 @@
       "Bash(chmod:*)",
       "Bash(netstat:*)",
       "Bash(ss:*)",
-      "Bash(redis-cli ping:*)"
+      "Bash(redis-cli ping:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

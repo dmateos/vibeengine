@@ -1,0 +1,120 @@
+version: '3.8'
+
+# Development docker-compose with hot reloading for frontend
+
+services:
+  # Redis - Message broker for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: vibeengine-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Django web server
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: backend-dev
+    container_name: vibeengine-web-dev
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+      - /app/frontend/node_modules  # Don't override node_modules
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Frontend dev server with hot reload
+  frontend:
+    image: node:20-alpine
+    container_name: vibeengine-frontend-dev
+    restart: unless-stopped
+    working_dir: /app/frontend
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      - VITE_API_URL=http://localhost/api
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules  # Don't override node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - web
+
+  # Celery worker - Background task execution
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: backend-dev
+    container_name: vibeengine-worker-dev
+    restart: unless-stopped
+    command: celery -A backend worker --loglevel=info --concurrency=2
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+  # Celery beat - Task scheduler
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: backend-dev
+    container_name: vibeengine-beat-dev
+    restart: unless-stopped
+    command: celery -A backend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+  # Nginx reverse proxy (optional for dev)
+  nginx:
+    image: nginx:alpine
+    container_name: vibeengine-nginx-dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - frontend
+    profiles:
+      - with-nginx  # Only start if explicitly requested
+
+volumes:
+  redis_data:
+    driver: local

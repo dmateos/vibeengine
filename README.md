@@ -1,419 +1,486 @@
 # VibeEngine
 
-AI-Powered Workflow Engine - Design, orchestrate, and deploy powerful AI agents with visual workflows.
+A visual workflow orchestration platform for building and deploying AI-powered automation. Design complex workflows with drag-and-drop simplicity, integrate multiple AI providers, and scale with confidence.
 
 ## Features
 
-- 🤖 **Multi-Agent Orchestration** - Coordinate OpenAI, Claude, and Ollama agents
-- 🔧 **Custom Tools** - Extend agent capabilities with custom tools and integrations
-- 🧠 **Persistent Memory** - Give your agents memory to learn and improve
-- ⚡ **Parallel Execution** - Run multiple workflow branches simultaneously
-- 🔀 **Conditional Logic** - Smart routing and decision-making
-- 📊 **Live Monitoring** - Real-time workflow execution tracking with polling
-- 🔐 **User Authentication** - Secure multi-user support with personal workflows
-- 🌐 **API Triggers** - Trigger workflows via REST API with API keys
-- 📜 **Execution History** - Track and review all workflow executions
+### AI & Integration
+- **Multi-Model AI Support** - OpenAI GPT, Claude, Ollama, and Hugging Face models
+- **Tool Calling** - Native tool support for Claude agents and custom tools
+- **API Integrations** - HTTP requests, webhooks, external services
+- **Database Drivers** - SQL, Redis, and in-memory storage
+- **Web Scraping** - Extract data from websites
+- **Email (SMTP)** - Send automated emails
+- **SSH Execution** - Run remote commands securely
 
-## Prerequisites
+### Workflow Control
+- **Visual Flow Designer** - Intuitive drag-and-drop interface built with ReactFlow
+- **Conditional Logic** - Smart routing and decision-making with router nodes
+- **Parallel Execution** - Run multiple branches simultaneously
+- **Loops & Iteration** - For-each and counter-based loops for repeated tasks
+- **Sleep/Delay** - Add pauses between workflow steps
+- **Error Handling** - Graceful failure management
 
-- Python 3.11+
-- Node.js 18+ and npm
-- (Optional) Ollama installed locally for local LLM support
+### Automation & Scheduling
+- **Background Processing** - Celery-based async task execution
+- **Scheduled Workflows** - Cron-style scheduling with Celery Beat
+- **API Triggers** - Secure webhook triggers with API keys
+- **Real-time Monitoring** - Live execution tracking with polling
+- **Execution History** - Complete audit trail of all workflow runs
+
+### Enterprise Ready
+- **Multi-User Support** - User authentication and personal workspaces
+- **Docker Deployment** - Production-ready containerization with nginx
+- **Scalable Architecture** - Redis-backed message queue for distributed processing
+- **Security** - Token authentication, API key management, rate limiting
 
 ## Quick Start
 
-### 1. Clone the Repository
+### Option 1: Docker (Recommended)
 
+**Development Mode** (with hot reload):
 ```bash
-git clone <your-repo-url>
-cd vibeengine
+./docker-start-dev.sh
+
+# Access:
+# Frontend: http://localhost:5173 (auto-reload on changes)
+# API: http://localhost:8000
 ```
 
-### 2. Backend Setup
-
+**Production Mode**:
 ```bash
-# Create and activate virtual environment
+./docker-start.sh
+
+# Access everything at: http://localhost
+```
+
+See [DOCKER.md](DOCKER.md) and [DOCKER-DEV.md](DOCKER-DEV.md) for detailed documentation.
+
+### Option 2: Manual Setup
+
+**Prerequisites:**
+- Python 3.11+
+- Node.js 20+
+- Redis (for Celery)
+
+**Backend:**
+```bash
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Copy environment variables template
-cp .env.example .env
-
-# Edit .env and add your API keys
-# At minimum, add OPENAI_API_KEY and/or ANTHROPIC_API_KEY
-
-# Run database migrations
-python manage.py migrate
-
-# Create superuser (for Django admin access)
-python manage.py createsuperuser
-
-# Start Django development server
-python manage.py runserver
-```
-
-The backend will be available at `http://localhost:8000`
-
-### 3. Frontend Setup
-
-```bash
-# Navigate to frontend directory
-cd frontend
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
-npm install
+pip install -r requirements.txt
 
-# Start development server
+# Setup database
+python manage.py migrate
+python manage.py createsuperuser
+
+# Start services
+python manage.py runserver  # Django server
+celery -A backend worker -l info  # Celery worker
+celery -A backend beat -l info  # Celery beat (scheduler)
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`
+Access at http://localhost:5173
 
-## Environment Variables
+## Docker Architecture
 
-Copy `.env.example` to `.env` and configure:
-
-### Required (at least one AI provider):
-- `OPENAI_API_KEY` - OpenAI API key for GPT models
-- `ANTHROPIC_API_KEY` - Anthropic API key for Claude models
-
-### Optional:
-- `OLLAMA_BASE_URL` - Ollama API URL (default: http://localhost:11434)
-- `OLLAMA_MODEL` - Default Ollama model (default: llama3.1:8b-instruct)
-- `GOOGLE_API_KEY` - For Google Search tool
-- `GOOGLE_CSE_ID` - Google Custom Search Engine ID
-- `REDIS_URL` - Redis connection URL for distributed memory
-- `DEBUG_TOOL_CALLS` - Enable debug logging for tool calls
-
-## Project Structure
-
+### Production Setup
 ```
-vibeengine/
-├── api/                    # Django REST API
-│   ├── drivers/           # Node execution drivers
-│   │   ├── openai_agent.py
-│   │   ├── claude_agent.py
-│   │   ├── ollama_agent.py
-│   │   ├── huggingface.py
-│   │   ├── text_transform.py
-│   │   ├── memory.py
-│   │   ├── tool.py
-│   │   └── ...
-│   ├── orchestration/     # Workflow execution engine
-│   │   ├── workflow_executor.py
-│   │   └── polling_executor.py
-│   ├── migrations/        # Database migrations
-│   ├── models.py          # Database models
-│   ├── views.py           # API endpoints
-│   ├── serializers.py     # DRF serializers
-│   └── urls.py            # URL routing
-├── frontend/              # React + TypeScript UI
-│   ├── src/
-│   │   ├── components/   # React components
-│   │   │   ├── FlowDiagram.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── Signup.tsx
-│   │   │   └── nodes/    # Custom node components
-│   │   ├── contexts/     # React contexts
-│   │   │   └── AuthContext.tsx
-│   │   ├── hooks/        # Custom React hooks
-│   │   │   └── usePolling.ts
-│   │   └── main.tsx      # Entry point
-│   └── package.json
-├── backend/               # Django project settings
-│   └── settings.py
-├── requirements.txt       # Python dependencies
-├── .env.example          # Environment variables template
-├── db.sqlite3            # SQLite database
-└── manage.py             # Django management script
+nginx (port 80)
+  ├── Frontend (static files)
+  ├── API (proxy to Django)
+  └── Admin (proxy to Django)
+
+Django + Gunicorn (port 8000)
+  └── Web server
+
+Celery Worker
+  └── Background tasks
+
+Celery Beat
+  └── Scheduled tasks
+
+Redis
+  └── Message broker
+```
+
+All services behind nginx on a single port for clean deployment.
+
+### Development Setup
+- Frontend: Vite dev server with HMR (port 5173)
+- Backend: Django runserver with auto-reload (port 8000)
+- Celery: Worker and beat for background tasks
+- Optional nginx proxy for unified access
+
+## Workflow Nodes
+
+### AI Agents
+- **OpenAI Agent** - GPT-3.5, GPT-4, GPT-4o, o1 models
+- **Claude Agent** - Claude 3 (Opus, Sonnet, Haiku) with native tool calling
+- **Ollama Agent** - Local LLMs (Llama, Mistral, Qwen, etc.)
+- **Hugging Face** - Sentiment analysis, NER, classification, generation
+
+### Control Flow
+- **Router** - Conditional branching (if/else logic)
+- **Condition** - Boolean evaluation for routing
+- **Parallel** - Execute multiple paths concurrently
+- **Join** - Merge parallel execution results
+- **Loop** - Counter-based iteration (for i in range)
+- **For Each** - Iterate over arrays/collections
+- **Sleep** - Add delays (milliseconds to hours)
+
+### Data Operations
+- **Input** - Static or dynamic data entry
+- **Output** - Workflow exit points
+- **Text Transform** - String manipulation (case, trim, split, replace)
+- **Validator** - JSON schema validation
+- **Memory** - Persistent key-value storage
+
+### External Services
+- **HTTP Tool** - REST API calls (GET, POST, PUT, DELETE)
+- **Web Scraper** - Extract content from websites
+- **Email (SMTP)** - Send emails with attachments
+- **SQL Database** - Query and modify databases
+- **Redis** - Cache and data store operations
+- **SSH** - Execute remote commands
+
+## Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+# AI Provider Keys (at least one required)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Ollama (if using local models)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b-instruct
+
+# Google Search (optional)
+GOOGLE_API_KEY=...
+GOOGLE_CSE_ID=...
+
+# Redis (required for Celery)
+REDIS_URL=redis://localhost:6379/0
+
+# Django
+SECRET_KEY=your-secret-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Email (optional, for SMTP node)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-password
 ```
 
 ## Usage
 
-### Getting Started
+### Building a Workflow
 
-1. Navigate to `http://localhost:5173`
-2. Sign up for an account or log in
-3. Click "Start Building" to open the workflow designer
+1. **Create New Workflow**
+   - Click "Start Building" or "New Workflow"
+   - Give it a name
 
-### Creating Your First Workflow
+2. **Add Nodes**
+   - Drag nodes from the left sidebar
+   - Categories: Triggers, AI Agents, Tools, Control Flow, Data
 
-1. Add nodes from the toolbar:
-   - **Input** - Entry point with static data
-   - **AI Agents** - OpenAI, Claude, or Ollama
-   - **Tools** - HTTP requests, text manipulation
-   - **Output** - Workflow exit point
+3. **Connect Nodes**
+   - Click and drag from output handles (bottom/right) to input handles (top)
+   - Multiple connections supported for parallel execution
 
-2. Connect nodes by dragging from output handles to input handles
+4. **Configure Nodes**
+   - Click a node to open configuration panel
+   - Set prompts, parameters, API keys, etc.
+   - Use `{input}` to reference previous node output
 
-3. Configure each node by clicking on it:
-   - Set AI agent system prompts
-   - Configure model parameters
-   - Set input values
+5. **Save & Run**
+   - Click "Save" to persist workflow
+   - Click "Run" to execute
+   - View results in right sidebar
 
-4. Save your workflow with a name
+### Example: AI Content Pipeline
 
-5. Run it with the "▶️ Run" button and see results in the right sidebar
+```
+Input (topic)
+  → Claude Agent (research)
+    → OpenAI Agent (write article)
+      → Text Transform (format)
+        → Output
+```
 
-### Available Node Types
+### Example: Scheduled Email Reports
 
-#### AI Agents
-- **OpenAI Agent** - GPT-3.5, GPT-4, GPT-4o models
-- **Claude Agent** - Claude 3 models (Opus, Sonnet, Haiku) with native tool support
-- **Ollama Agent** - Local LLMs via Ollama (Llama, Mistral, etc.)
-- **Hugging Face** - Transformers models (sentiment analysis, NER, text classification)
-
-#### Logic & Flow Control
-- **Router** - Conditional branching (yes/no decisions)
-- **Parallel** - Execute multiple branches concurrently
-- **Join** - Merge parallel execution results
-
-#### Data Processing
-- **Input** - Static data entry point
-- **Output** - Workflow exit point
-- **Text Transform** - String manipulation (upper, lower, replace, split, etc.)
-- **Validator** - JSON schema validation
-
-#### Tools & Memory
-- **Tool** - HTTP requests, append/prepend operations, Google Search
-- **Memory** - Read/write persistent key-value storage
+```
+Trigger (cron: daily at 9am)
+  → SQL Database (fetch data)
+    → OpenAI Agent (generate summary)
+      → Email SMTP (send report)
+```
 
 ### API Access
 
-Enable API access for a workflow:
+Enable external triggers:
 
-1. Open your workflow in the designer
-2. Click the "⚡ Triggers" button in the toolbar
-3. Enable "API Access"
-4. Copy the generated API key
+1. Click "Triggers" button in workflow editor
+2. Enable "API Access"
+3. Copy the API key
 
-Trigger your workflow via API:
-
-```bash
-curl -X POST http://localhost:8000/api/workflows/<workflow-id>/trigger/ \
-  -H "X-API-Key: <your-api-key>" \
-  -H "Content-Type: application/json" \
-  -d '{"input": "Hello World"}'
-```
-
-Response includes execution ID and status:
-
-```json
-{
-  "executionId": "abc123...",
-  "status": "started"
-}
-```
-
-To poll for results until completion:
+Trigger via HTTP:
 
 ```bash
-#!/bin/bash
-# Trigger workflow and poll for completion
-
-# Trigger the workflow
-RESPONSE=$(curl -s -X POST http://localhost:8000/api/workflows/<workflow-id>/trigger/ \
-  -H "X-API-Key: <your-api-key>" \
+curl -X POST http://localhost/api/workflows/{id}/trigger/ \
+  -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{"input": "Hello World"}')
-
-# Extract execution ID
-EXECUTION_ID=$(echo $RESPONSE | grep -o '"executionId":"[^"]*"' | cut -d'"' -f4)
-echo "Execution started: $EXECUTION_ID"
-
-# Poll until completed or error
-while true; do
-  STATUS_RESPONSE=$(curl -s http://localhost:8000/api/execution/$EXECUTION_ID/status/)
-  STATUS=$(echo $STATUS_RESPONSE | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-
-  echo "Status: $STATUS"
-
-  if [ "$STATUS" = "completed" ] || [ "$STATUS" = "error" ]; then
-    echo "Final result:"
-    echo $STATUS_RESPONSE | python3 -m json.tool
-    break
-  fi
-
-  sleep 1
-done
+  -d '{"input": "your data"}'
 ```
 
-### Viewing Execution History
+### Scheduled Execution
 
-1. Click the "📊 History" button in the toolbar
-2. Browse all past executions with:
-   - Input data
-   - Final output
-   - Status (completed/error)
-   - Execution time
-   - Detailed trace of each step
-
-3. Click on the "📜 History" tab in the right sidebar to see per-node execution history
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register/` - Register new user
-- `POST /api/auth/login/` - Login and get token
-- `POST /api/auth/logout/` - Logout (invalidate token)
-- `GET /api/auth/user/` - Get current user info
-
-### Workflows
-- `GET /api/workflows/` - List user's workflows (authenticated)
-- `POST /api/workflows/` - Create workflow (authenticated)
-- `GET /api/workflows/<id>/` - Get workflow details (owner only)
-- `PUT /api/workflows/<id>/` - Update workflow (owner only)
-- `DELETE /api/workflows/<id>/` - Delete workflow (owner only)
-- `POST /api/workflows/<id>/trigger/` - Trigger workflow via API key
-- `POST /api/workflows/<id>/regenerate-api-key/` - Generate new API key
-- `GET /api/workflows/<id>/executions/` - Get execution history
-
-### Execution
-- `POST /api/execute-workflow-async/` - Execute workflow (async with polling)
-- `GET /api/execution/<id>/status/` - Poll execution status
-- `POST /api/execute-node/` - Execute single node (testing)
-
-### Node Types
-- `GET /api/node-types/` - List all available node types
+1. Click "Schedules" in workflow editor
+2. Add cron expression (e.g., `0 9 * * *` for daily at 9am)
+3. Enable the schedule
+4. Celery Beat will trigger automatically
 
 ## Development
 
-### Running Tests
+### Project Structure
 
-```bash
-# Backend tests
-python manage.py test
-
-# Run specific test
-python manage.py test api.tests.test_drivers
+```
+vibeengine/
+├── api/                     # Django app
+│   ├── drivers/            # Node execution logic
+│   ├── orchestration/      # Workflow engine
+│   ├── models.py           # Database models
+│   ├── views.py            # API endpoints
+│   └── tasks.py            # Celery tasks
+├── backend/                # Django project
+│   ├── settings.py         # Configuration
+│   ├── celery.py          # Celery setup
+│   └── wsgi.py            # WSGI entry
+├── frontend/               # React frontend
+│   └── src/
+│       ├── components/     # UI components
+│       ├── contexts/       # React contexts
+│       └── hooks/          # Custom hooks
+├── Dockerfile              # Production image
+├── Dockerfile.dev          # Development image
+├── docker-compose.yml      # Production setup
+├── docker-compose.dev.yml  # Development setup
+├── nginx.conf              # Production nginx
+└── nginx.dev.conf          # Development nginx
 ```
 
-### Database Management
+### Adding Custom Nodes
 
-```bash
-# Create new migration after model changes
-python manage.py makemigrations
-
-# Apply migrations
-python manage.py migrate
-
-# Access Django admin
-# Navigate to http://localhost:8000/admin
-# Login with superuser credentials
-```
-
-### Adding New Node Types
-
-1. Create a new driver in `api/drivers/`:
+1. **Create Driver** (`api/drivers/my_node.py`):
 
 ```python
 from .base import BaseDriver, DriverResponse
 
-class MyCustomDriver(BaseDriver):
-    def execute(self, data: Dict[str, Any], context: Dict[str, Any]) -> DriverResponse:
+class MyNodeDriver(BaseDriver):
+    type = "my_node"
+
+    def execute(self, node, context):
+        input_data = context.get("input")
         # Your logic here
-        return DriverResponse(
-            output="result",
-            final="final result"
-        )
+        result = process(input_data)
+        return DriverResponse({
+            "status": "ok",
+            "output": result
+        })
 ```
 
-2. Register in `api/drivers/__init__.py`
+2. **Register Driver** (`api/drivers/__init__.py`):
 
-3. Add node type definition in `api/node_types.py`
-
-4. Create frontend component in `frontend/src/components/nodes/`
-
-### Building for Production
-
-```bash
-# Build frontend
-cd frontend
-npm run build
-
-# Collect static files (Django)
-cd ..
-python manage.py collectstatic
-
-# Run with production server (gunicorn)
-pip install gunicorn
-gunicorn backend.wsgi:application --bind 0.0.0.0:8000
-```
-
-For production deployment, also configure:
-- Use PostgreSQL or MySQL instead of SQLite
-- Set `DEBUG=False` in settings.py
-- Configure proper SECRET_KEY
-- Set up HTTPS/SSL
-- Configure ALLOWED_HOSTS
-- Use Redis for caching and memory
-- Set up proper CORS origins
-
-## Troubleshooting
-
-### Port already in use
-```bash
-# Backend - change port
-python manage.py runserver 8001
-
-# Frontend - change port
-npm run dev -- --port 5174
-```
-
-### Database issues
-Reset database:
-```bash
-rm db.sqlite3
-python manage.py migrate
-python manage.py createsuperuser
-```
-
-### CORS errors
-Ensure frontend URL is in `CORS_ALLOWED_ORIGINS` in `backend/settings.py`:
 ```python
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-]
+from .my_node import MyNodeDriver
+
+DRIVERS = {
+    # ...
+    MyNodeDriver.type: MyNodeDriver(),
+}
 ```
 
-### API Key Issues
-- OpenAI: Ensure `OPENAI_API_KEY` is set in `.env`
-- Claude: Ensure `ANTHROPIC_API_KEY` is set in `.env`
-- Ollama: Make sure Ollama is running (`ollama serve`)
+3. **Add Node Type** (`api/node_types.py`):
 
-### Module not found errors
+```python
+'my_node': {
+    'display_name': 'My Node',
+    'icon': '🔧',
+    'color': '#10b981',
+    'description': 'Does something cool',
+    'category': 'Tools',
+}
+```
+
+4. **Create Frontend Component** (`frontend/src/components/nodes/MyNode.tsx`):
+
+```tsx
+function MyNode({ data }) {
+  return (
+    <div className="custom-node">
+      <Handle type="target" position={Position.Top} />
+      <div className="node-icon">{data.icon}</div>
+      <div className="node-label">{data.label}</div>
+      <Handle type="source" position={Position.Bottom} />
+    </div>
+  )
+}
+```
+
+### Running Tests
+
 ```bash
-# Ensure virtual environment is activated
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+# Backend
+python manage.py test
 
-# Reinstall dependencies
-pip install -r requirements.txt
+# Frontend
+cd frontend
+npm run test
 ```
+
+### Database Migrations
+
+```bash
+# Create migration
+python manage.py makemigrations
+
+# Apply migration
+python manage.py migrate
+
+# View migrations
+python manage.py showmigrations
+```
+
+## Deployment
+
+### Production Checklist
+
+- [ ] Set `DEBUG=False` in settings
+- [ ] Configure secure `SECRET_KEY`
+- [ ] Set proper `ALLOWED_HOSTS`
+- [ ] Use PostgreSQL (not SQLite)
+- [ ] Configure SSL/HTTPS in nginx
+- [ ] Set up proper backup strategy
+- [ ] Configure monitoring and logging
+- [ ] Set rate limits in nginx
+- [ ] Use environment variables for secrets
+- [ ] Enable firewall rules
+- [ ] Set up health checks
+
+### Docker Production
+
+```bash
+# Build and start
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Scale workers
+docker-compose up -d --scale celery-worker=3
+
+# Stop
+docker-compose down
+```
+
+See [DOCKER.md](DOCKER.md) for comprehensive deployment guide.
 
 ## Technology Stack
 
 ### Backend
 - Django 5.2.8 - Web framework
-- Django REST Framework 3.16.1 - API framework
-- django-cors-headers 4.9.0 - CORS support
-- transformers 4.57.2 - Hugging Face models
-- torch 2.9.1 - PyTorch for ML models
-- requests 2.32.5 - HTTP client for API calls
+- Django REST Framework - API
+- Celery 5.4.0 - Task queue
+- Redis 5.0.1 - Message broker
+- Gunicorn - WSGI server
 
 ### Frontend
 - React 19.2.0 - UI framework
 - TypeScript 5.9.3 - Type safety
 - Vite 7.2.4 - Build tool
-- @xyflow/react 12.9.3 - Workflow diagram library
+- ReactFlow 12.9.3 - Workflow diagrams
 
-## License
+### AI & ML
+- OpenAI 2.8.1 - GPT models
+- Anthropic SDK - Claude models
+- Transformers 4.57.2 - Hugging Face
+- PyTorch 2.9.1 - ML framework
 
-[Your License Here]
+### Infrastructure
+- Docker & Docker Compose
+- Nginx - Reverse proxy
+- SQLite (dev) / PostgreSQL (prod)
+
+## Troubleshooting
+
+**Port conflicts:**
+```bash
+# Check what's using a port
+lsof -i :8000
+
+# Change ports in docker-compose.yml
+```
+
+**Redis connection failed:**
+```bash
+# Check Redis is running
+docker-compose ps redis
+docker-compose exec redis redis-cli ping
+```
+
+**Frontend not updating:**
+```bash
+# Development mode - should auto-reload
+docker-compose -f docker-compose.dev.yml restart frontend
+
+# Production mode - rebuild
+docker-compose up -d --build
+```
+
+**Celery tasks not processing:**
+```bash
+# Check worker status
+docker-compose logs celery-worker
+
+# Restart worker
+docker-compose restart celery-worker
+```
+
+**Database locked (SQLite):**
+- Use PostgreSQL for production
+- Reduce Celery worker concurrency
+- Avoid concurrent writes
 
 ## Contributing
 
-[Your Contributing Guidelines Here]
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+- Documentation: See docs/ folder
+- Issues: GitHub Issues
+- Docker: [DOCKER.md](DOCKER.md) and [DOCKER-DEV.md](DOCKER-DEV.md)
