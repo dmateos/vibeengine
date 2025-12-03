@@ -127,14 +127,14 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'icon': '🤝',
         'color': '#ec4899',
         'description': 'Analyze agreement among multiple responses',
-        'category': 'Multi-Agent',
+        'category': 'Agents',
     },
     'conversation': {
         'display_name': 'Conversation',
         'icon': '💬',
         'color': '#f97316',
         'description': 'Multi-turn dialogue between multiple agents',
-        'category': 'Multi-Agent',
+        'category': 'Agents',
     },
 
     # Data
@@ -188,6 +188,20 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'color': '#249df1',
         'description': 'Send push notifications via Pushover',
         'category': 'Integrations',
+    },
+    'embeddings': {
+        'display_name': 'Embeddings',
+        'icon': '🔢',
+        'color': '#8b5cf6',
+        'description': 'Generate text embeddings from multiple providers (OpenAI, Cohere, HuggingFace)',
+        'category': 'Agents',
+    },
+    'image_generation': {
+        'display_name': 'Image Generation',
+        'icon': '🎨',
+        'color': '#f59e0b',
+        'description': 'Generate images from text using DALL-E, Stable Diffusion, and more',
+        'category': 'Agents',
     },
 }
 

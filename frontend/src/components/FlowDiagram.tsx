@@ -41,6 +41,8 @@ import ConversationNode from './nodes/ConversationNode'
 import TCPOutputNode from './nodes/TCPOutputNode'
 import HTMLOutputNode from './nodes/HTMLOutputNode'
 import PushoverNode from './nodes/PushoverNode'
+import EmbeddingsNode from './nodes/EmbeddingsNode'
+import ImageGenerationNode from './nodes/ImageGenerationNode'
 import PythonCodeNode from './nodes/PythonCodeNode'
 import SSHCommandNode from './nodes/SSHCommandNode'
 import CronTriggerNode from './nodes/CronTriggerNode'
@@ -96,6 +98,8 @@ const nodeTypes = {
   tcp_output: TCPOutputNode,
   html_output: HTMLOutputNode,
   pushover: PushoverNode,
+  embeddings: EmbeddingsNode,
+  image_generation: ImageGenerationNode,
 }
 
 const initialNodes: Node[] = []
@@ -290,6 +294,63 @@ function FlowDiagram() {
       return () => clearTimeout(timer)
     }
   }, [toast])
+
+  // Copy/Paste keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Ctrl+C or Cmd+C (copy)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        // Don't interfere with text input copy
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+          return
+        }
+
+        if (selectedNode) {
+          e.preventDefault()
+          // Store full node data in localStorage
+          localStorage.setItem('copiedNode', JSON.stringify(selectedNode))
+          showToast('Node copied', 'success')
+        }
+      }
+
+      // Check if Ctrl+V or Cmd+V (paste)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        // Don't interfere with text input paste
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+          return
+        }
+
+        const copiedNodeStr = localStorage.getItem('copiedNode')
+        if (copiedNodeStr) {
+          e.preventDefault()
+          try {
+            const copiedNode = JSON.parse(copiedNodeStr)
+
+            // Create new node with same config but new ID
+            const newNode: Node = {
+              ...copiedNode,
+              id: `node-${Date.now()}`,
+              position: {
+                x: copiedNode.position.x + 50,
+                y: copiedNode.position.y + 50,
+              },
+            }
+
+            setNodes((nds) => [...nds, newNode])
+            showToast('Node pasted', 'success')
+          } catch (error) {
+            console.error('Failed to paste node:', error)
+            showToast('Failed to paste node', 'error')
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedNode, nodes])
 
   // Handle output panel resize
   useEffect(() => {
@@ -2086,6 +2147,293 @@ function FlowDiagram() {
                       style={{ width: '100%', marginLeft: 6 }}
                     />
                   </div>
+                </>
+              )}
+
+              {/* Embeddings Node */}
+              {selectedNode.type === 'embeddings' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Provider:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.provider ?? 'openai'}
+                      onChange={(e) => {
+                        const provider = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), provider } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), provider } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="openai">OpenAI</option>
+                      <option value="cohere">Cohere</option>
+                      <option value="huggingface">HuggingFace (Local)</option>
+                    </select>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Model:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.model ?? ''}
+                      onChange={(e) => {
+                        const model = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                      }}
+                      placeholder="e.g., text-embedding-3-small, all-MiniLM-L6-v2"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Leave empty for provider default
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>API Key:</strong>
+                    <input
+                      type="password"
+                      value={(selectedNode.data as any)?.api_key ?? ''}
+                      onChange={(e) => {
+                        const api_key = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), api_key } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), api_key } } : prev))
+                      }}
+                      placeholder="Leave empty to use environment variable"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  {(selectedNode.data as any)?.provider === 'openai' && (
+                    <div className="detail-item">
+                      <strong>Dimensions (optional):</strong>
+                      <input
+                        type="number"
+                        min={1}
+                        max={3072}
+                        value={(selectedNode.data as any)?.dimensions ?? ''}
+                        onChange={(e) => {
+                          const dimensions = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), dimensions } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), dimensions } } : prev))
+                        }}
+                        placeholder="1536"
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                      <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                        Only for text-embedding-3-* models
+                      </small>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Image Generation Node */}
+              {selectedNode.type === 'image_generation' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Provider:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.provider ?? 'dalle'}
+                      onChange={(e) => {
+                        const provider = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), provider } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), provider } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="dalle">DALL-E (OpenAI)</option>
+                      <option value="stability">Stable Diffusion (Stability AI)</option>
+                    </select>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Model:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.model ?? ''}
+                      onChange={(e) => {
+                        const model = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      {(selectedNode.data as any)?.provider === 'dalle' ? (
+                        <>
+                          <option value="">Default (dall-e-3)</option>
+                          <option value="dall-e-3">DALL-E 3</option>
+                          <option value="dall-e-2">DALL-E 2</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="">Default (SD XL 1.0)</option>
+                          <option value="stable-diffusion-xl-1024-v1-0">SD XL 1.0</option>
+                          <option value="stable-diffusion-v1-6">SD v1.6</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>API Key:</strong>
+                    <input
+                      type="password"
+                      value={(selectedNode.data as any)?.api_key ?? ''}
+                      onChange={(e) => {
+                        const api_key = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), api_key } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), api_key } } : prev))
+                      }}
+                      placeholder="Leave empty to use environment variable"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Prompt:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.prompt ?? ''}
+                      onChange={(e) => {
+                        const prompt = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), prompt } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), prompt } } : prev))
+                      }}
+                      placeholder="Use {input} to include upstream data"
+                      rows={3}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Leave empty to use input as prompt, or use <code>{'{input}'}</code> placeholder
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Size:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.size ?? '1024x1024'}
+                      onChange={(e) => {
+                        const size = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), size } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), size } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      {(selectedNode.data as any)?.provider === 'dalle' && (selectedNode.data as any)?.model !== 'dall-e-2' ? (
+                        <>
+                          <option value="1024x1024">1024x1024 (Square)</option>
+                          <option value="1792x1024">1792x1024 (Landscape)</option>
+                          <option value="1024x1792">1024x1792 (Portrait)</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="256x256">256x256</option>
+                          <option value="512x512">512x512</option>
+                          <option value="1024x1024">1024x1024</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  {(selectedNode.data as any)?.provider === 'dalle' && (selectedNode.data as any)?.model !== 'dall-e-2' && (
+                    <>
+                      <div className="detail-item">
+                        <strong>Quality:</strong>
+                        <select
+                          value={(selectedNode.data as any)?.quality ?? 'standard'}
+                          onChange={(e) => {
+                            const quality = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), quality } } : n
+                              )
+                            )
+                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), quality } } : prev))
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                        >
+                          <option value="standard">Standard</option>
+                          <option value="hd">HD (Higher cost)</option>
+                        </select>
+                      </div>
+
+                      <div className="detail-item">
+                        <strong>Style:</strong>
+                        <select
+                          value={(selectedNode.data as any)?.style ?? 'vivid'}
+                          onChange={(e) => {
+                            const style = e.target.value
+                            setNodes((nds) =>
+                              nds.map((n) =>
+                                n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), style } } : n
+                              )
+                            )
+                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), style } } : prev))
+                          }}
+                          style={{ width: '100%', marginLeft: 6 }}
+                        >
+                          <option value="vivid">Vivid (Hyper-real)</option>
+                          <option value="natural">Natural</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {(selectedNode.data as any)?.model === 'dall-e-2' && (
+                    <div className="detail-item">
+                      <strong>Number of Images:</strong>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={(selectedNode.data as any)?.n_images ?? 1}
+                        onChange={(e) => {
+                          const n_images = parseInt(e.target.value)
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), n_images } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), n_images } } : prev))
+                        }}
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
 

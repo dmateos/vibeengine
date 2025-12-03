@@ -23,6 +23,8 @@ from .python_code import PythonCodeDriver
 from .ssh_command import SSHCommandDriver
 from .html_output import HTMLOutputDriver
 from .pushover import PushoverDriver
+from .embeddings import EmbeddingsDriver
+from .image_generation import ImageGenerationDriver
 
 
 # Registry of all available drivers
@@ -50,6 +52,8 @@ DRIVERS: Dict[str, BaseDriver] = {
     SSHCommandDriver.type: SSHCommandDriver(),
     HTMLOutputDriver.type: HTMLOutputDriver(),
     PushoverDriver.type: PushoverDriver(),
+    EmbeddingsDriver.type: EmbeddingsDriver(),
+    ImageGenerationDriver.type: ImageGenerationDriver(),
 }
 
 
@@ -106,6 +110,8 @@ __all__ = [
     "SSHCommandDriver",
     "HTMLOutputDriver",
     "PushoverDriver",
+    "EmbeddingsDriver",
+    "ImageGenerationDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]
