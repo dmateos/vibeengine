@@ -173,7 +173,21 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'icon': '🔌',
         'color': '#0891b2',
         'description': 'Send data to a TCP server/socket',
-        'category': 'Network',
+        'category': 'Data',
+    },
+    'html_output': {
+        'display_name': 'HTML Output',
+        'icon': '🌐',
+        'color': '#e11d48',
+        'description': 'Output HTML content with preview capability',
+        'category': 'Input/Output',
+    },
+    'pushover': {
+        'display_name': 'Pushover',
+        'icon': '📱',
+        'color': '#249df1',
+        'description': 'Send push notifications via Pushover',
+        'category': 'Integrations',
     },
 }
 

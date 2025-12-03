@@ -39,6 +39,8 @@ import JoinNode from './nodes/JoinNode'
 import ConsensusNode from './nodes/ConsensusNode'
 import ConversationNode from './nodes/ConversationNode'
 import TCPOutputNode from './nodes/TCPOutputNode'
+import HTMLOutputNode from './nodes/HTMLOutputNode'
+import PushoverNode from './nodes/PushoverNode'
 import PythonCodeNode from './nodes/PythonCodeNode'
 import SSHCommandNode from './nodes/SSHCommandNode'
 import CronTriggerNode from './nodes/CronTriggerNode'
@@ -92,6 +94,8 @@ const nodeTypes = {
   consensus: ConsensusNode,
   conversation: ConversationNode,
   tcp_output: TCPOutputNode,
+  html_output: HTMLOutputNode,
+  pushover: PushoverNode,
 }
 
 const initialNodes: Node[] = []
@@ -129,7 +133,7 @@ function FlowDiagram() {
   const [outputPanelHeight, setOutputPanelHeight] = useState(240)
   const [isResizingOutput, setIsResizingOutput] = useState(false)
   const [schedules, setSchedules] = useState<any[]>([])
-  const [loadingSchedules, setLoadingSchedules] = useState(false)
+  const [_loadingSchedules, setLoadingSchedules] = useState(false)
 
   // Use ref to track previous non-node tab to avoid stale closures
   const previousTabRef = useRef<'history'>('history')
@@ -860,31 +864,31 @@ function FlowDiagram() {
   return (
     <div className="flow-container">
       {/* Primary Toolbar - Workflow Management */}
-      <div className="flow-header-primary">
-        <div className="workflow-info">
-          <h2>⚡ Workflow Designer</h2>
-          <div className="workflow-name-container">
-            <input
-              type="text"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-              placeholder="Workflow name..."
-              className="workflow-name-input"
-            />
-            {currentWorkflow && (
-              <span className="workflow-status">
-                Last saved: {new Date(currentWorkflow.updated_at).toLocaleString()}
-              </span>
-            )}
-          </div>
+      <div className="flow-header-primary" style={{ padding: '0.5rem 1rem', minHeight: 'auto' }}>
+        <div className="workflow-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>⚡</span>
+          <input
+            type="text"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.target.value)}
+            placeholder="Workflow name..."
+            className="workflow-name-input"
+            style={{ fontSize: '0.95rem', padding: '0.35rem 0.6rem', minWidth: '200px', maxWidth: '300px' }}
+          />
+          {currentWorkflow && (
+            <span className="workflow-status" style={{ fontSize: '0.75rem', opacity: 0.7, whiteSpace: 'nowrap' }}>
+              {new Date(currentWorkflow.updated_at).toLocaleTimeString()}
+            </span>
+          )}
         </div>
-        <div className="workflow-actions">
-          <button className="btn-outline" onClick={createNewWorkflow}>
+        <div className="workflow-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn-outline" onClick={createNewWorkflow} style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}>
             📄 New
           </button>
           <button
             className="btn-outline"
             onClick={() => setShowWorkflowList(!showWorkflowList)}
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
           >
             📂 {showWorkflowList ? 'Close' : 'Load'}
           </button>
@@ -892,6 +896,7 @@ function FlowDiagram() {
             className="btn-primary"
             onClick={saveWorkflow}
             disabled={saving}
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
           >
             {saving ? '💾 Saving...' : '💾 Save'}
           </button>
@@ -1875,6 +1880,215 @@ function FlowDiagram() {
                 </>
               )}
 
+              {/* Pushover Node */}
+              {selectedNode.type === 'pushover' && (
+                <>
+                  <div className="detail-item">
+                    <strong>User Key:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.user_key ?? ''}
+                      onChange={(e) => {
+                        const user_key = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), user_key } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), user_key } } : prev))
+                      }}
+                      placeholder="Your Pushover user key"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>API Token:</strong>
+                    <input
+                      type="password"
+                      value={(selectedNode.data as any)?.api_token ?? ''}
+                      onChange={(e) => {
+                        const api_token = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), api_token } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), api_token } } : prev))
+                      }}
+                      placeholder="Your application API token"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Message:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.message ?? ''}
+                      onChange={(e) => {
+                        const message = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), message } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), message } } : prev))
+                      }}
+                      placeholder="Use {input} to include upstream data"
+                      rows={3}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Leave empty to use input as message, or use <code>{'{input}'}</code> placeholder
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Title (optional):</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.title ?? ''}
+                      onChange={(e) => {
+                        const title = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), title } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), title } } : prev))
+                      }}
+                      placeholder="Notification title"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Priority:</strong>
+                    <select
+                      value={(selectedNode.data as any)?.priority ?? 0}
+                      onChange={(e) => {
+                        const priority = parseInt(e.target.value)
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), priority } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), priority } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="-2">Lowest (no sound/vibration)</option>
+                      <option value="-1">Low</option>
+                      <option value="0">Normal</option>
+                      <option value="1">High</option>
+                      <option value="2">Emergency (requires acknowledgment)</option>
+                    </select>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Sound (optional):</strong>
+                    <select
+                      value={(selectedNode.data as any)?.sound ?? ''}
+                      onChange={(e) => {
+                        const sound = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), sound } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), sound } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    >
+                      <option value="">Default</option>
+                      <option value="pushover">Pushover</option>
+                      <option value="bike">Bike</option>
+                      <option value="bugle">Bugle</option>
+                      <option value="cashregister">Cash Register</option>
+                      <option value="classical">Classical</option>
+                      <option value="cosmic">Cosmic</option>
+                      <option value="falling">Falling</option>
+                      <option value="gamelan">Gamelan</option>
+                      <option value="incoming">Incoming</option>
+                      <option value="intermission">Intermission</option>
+                      <option value="magic">Magic</option>
+                      <option value="mechanical">Mechanical</option>
+                      <option value="pianobar">Piano Bar</option>
+                      <option value="siren">Siren</option>
+                      <option value="spacealarm">Space Alarm</option>
+                      <option value="tugboat">Tug Boat</option>
+                      <option value="alien">Alien (long)</option>
+                      <option value="climb">Climb (long)</option>
+                      <option value="persistent">Persistent (long)</option>
+                      <option value="echo">Echo (long)</option>
+                      <option value="updown">Up Down (long)</option>
+                      <option value="vibrate">Vibrate only</option>
+                      <option value="none">Silent</option>
+                    </select>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Device (optional):</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.device ?? ''}
+                      onChange={(e) => {
+                        const device = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), device } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), device } } : prev))
+                      }}
+                      placeholder="Leave empty for all devices"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Comma-separated device names (e.g., iphone,android)
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>URL (optional):</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.url ?? ''}
+                      onChange={(e) => {
+                        const url = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), url } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), url } } : prev))
+                      }}
+                      placeholder="https://example.com"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>URL Title (optional):</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.url_title ?? ''}
+                      onChange={(e) => {
+                        const url_title = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), url_title } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), url_title } } : prev))
+                      }}
+                      placeholder="Link text"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                </>
+              )}
+
               {/* Memory Node */}
               {selectedNode.type === 'memory' && (
                 <div className="detail-item">
@@ -2662,6 +2876,69 @@ function FlowDiagram() {
                 </>
               )}
 
+              {/* HTML Output Node */}
+              {selectedNode.type === 'html_output' && (
+                <>
+                  <div className="detail-item">
+                    <strong>📄 HTML Output Node</strong>
+                    <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: '4px' }}>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        This node captures and displays HTML content from upstream nodes (like AI agents generating HTML).
+                        Run the workflow to see the rendered HTML below.
+                      </p>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const history = nodeExecutionHistory[selectedNode.id] || []
+                    const latestExec = history[0]
+
+                    // Try to get HTML from multiple possible locations
+                    const htmlContent = latestExec?.output || latestExec?.result?.output || latestExec?.result?.html
+
+                    if (htmlContent) {
+                      return (
+                        <div className="detail-item">
+                          <strong>🌐 HTML Preview (Latest Execution):</strong>
+                          <div style={{
+                            marginTop: '0.5rem',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '4px',
+                            background: 'white',
+                            padding: '1rem',
+                            maxHeight: '400px',
+                            overflow: 'auto'
+                          }}>
+                            <div dangerouslySetInnerHTML={{ __html: String(htmlContent) }} />
+                          </div>
+                          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            📅 Last updated: {latestExec?.timestamp ? new Date(latestExec.timestamp).toLocaleString() : 'Unknown'}
+                          </div>
+                        </div>
+                      )
+                    } else {
+                      return (
+                        <div className="detail-item">
+                          <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                            {history.length > 0 ? (
+                              <div>
+                                <div style={{ marginBottom: '0.5rem' }}>⚠️ No HTML content in latest execution</div>
+                                <div style={{ fontSize: '0.75rem' }}>Make sure the upstream node outputs HTML text.</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div style={{ marginBottom: '0.5rem' }}>💡 No executions yet</div>
+                                <div style={{ fontSize: '0.75rem' }}>Run the workflow to see HTML preview here.</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
+                  })()}
+                </>
+              )}
+
               {/* Test Execution Section */}
               <div className="detail-item" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                 <strong>Test Input:</strong>
@@ -2754,6 +3031,25 @@ function FlowDiagram() {
                             selectedNode?.type === 'consensus' && exec.output?.consensus !== undefined ? (
                               <div style={{ marginTop: '0.5rem' }}>
                                 <ConsensusResultView result={exec.output} />
+                              </div>
+                            ) : selectedNode?.type === 'html_output' ? (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <details>
+                                  <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                    HTML Preview
+                                  </summary>
+                                  <div style={{
+                                    marginTop: '0.5rem',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '4px',
+                                    background: 'white',
+                                    padding: '0.5rem',
+                                    maxHeight: '200px',
+                                    overflow: 'auto'
+                                  }}>
+                                    <div dangerouslySetInnerHTML={{ __html: String(exec.output) }} />
+                                  </div>
+                                </details>
                               </div>
                             ) : (
                               <div style={{ fontSize: '0.85rem' }}>
@@ -2889,6 +3185,24 @@ function FlowDiagram() {
                               step.type === 'consensus' && res.output?.consensus !== undefined ? (
                                 <div style={{ marginLeft: 12, marginTop: 8 }}>
                                   <ConsensusResultView result={res.output} />
+                                </div>
+                              ) : step.type === 'html_output' ? (
+                                <div style={{ marginLeft: 12, marginTop: 8 }}>
+                                  <details open>
+                                    <summary style={{ cursor: 'pointer', fontSize: '0.9em', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                      HTML Preview
+                                    </summary>
+                                    <div style={{
+                                      border: '1px solid var(--border-color)',
+                                      borderRadius: '4px',
+                                      background: 'white',
+                                      padding: '1rem',
+                                      maxHeight: '400px',
+                                      overflow: 'auto'
+                                    }}>
+                                      <div dangerouslySetInnerHTML={{ __html: String(res.output) }} />
+                                    </div>
+                                  </details>
                                 </div>
                               ) : (
                                 <div style={{ marginLeft: 12, marginTop: 4, fontSize: '0.85em' }}>
@@ -3618,34 +3932,57 @@ done`,
                     (() => {
                       const node = nodes.find(n => n.id === nodeHistoryPanelNode)
                       const isConsensus = node?.type === 'consensus' && exec.output?.consensus !== undefined
+                      const isHtmlOutput = node?.type === 'html_output'
 
-                      return isConsensus ? (
-                        <div style={{ marginBottom: '0.75rem' }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                            Output:
+                      if (isConsensus) {
+                        return (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                              Output:
+                            </div>
+                            <ConsensusResultView result={exec.output} />
                           </div>
-                          <ConsensusResultView result={exec.output} />
-                        </div>
-                      ) : (
-                        <div style={{ marginBottom: '0.75rem' }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
-                            Output:
-                          </div>
-                          <pre
-                            style={{
-                              background: 'var(--bg-secondary)',
-                              padding: '0.5rem',
+                        )
+                      } else if (isHtmlOutput) {
+                        return (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                              HTML Preview:
+                            </div>
+                            <div style={{
+                              border: '1px solid var(--border-color)',
                               borderRadius: '4px',
-                              fontSize: '0.8rem',
-                              overflow: 'auto',
-                              margin: 0,
-                              color: 'var(--text-primary)',
-                            }}
-                          >
-                            {typeof exec.output === 'object' ? JSON.stringify(exec.output, null, 2) : String(exec.output)}
-                          </pre>
-                        </div>
-                      )
+                              background: 'white',
+                              padding: '1rem',
+                              maxHeight: '400px',
+                              overflow: 'auto'
+                            }}>
+                              <div dangerouslySetInnerHTML={{ __html: String(exec.output) }} />
+                            </div>
+                          </div>
+                        )
+                      } else {
+                        return (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
+                              Output:
+                            </div>
+                            <pre
+                              style={{
+                                background: 'var(--bg-secondary)',
+                                padding: '0.5rem',
+                                borderRadius: '4px',
+                                fontSize: '0.8rem',
+                                overflow: 'auto',
+                                margin: 0,
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              {typeof exec.output === 'object' ? JSON.stringify(exec.output, null, 2) : String(exec.output)}
+                            </pre>
+                          </div>
+                        )
+                      }
                     })()
                   )}
 

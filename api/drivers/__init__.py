@@ -21,6 +21,8 @@ from .conversation import ConversationDriver
 from .tcp_output import TCPOutputDriver
 from .python_code import PythonCodeDriver
 from .ssh_command import SSHCommandDriver
+from .html_output import HTMLOutputDriver
+from .pushover import PushoverDriver
 
 
 # Registry of all available drivers
@@ -46,6 +48,8 @@ DRIVERS: Dict[str, BaseDriver] = {
     TCPOutputDriver.type: TCPOutputDriver(),
     PythonCodeDriver.type: PythonCodeDriver(),
     SSHCommandDriver.type: SSHCommandDriver(),
+    HTMLOutputDriver.type: HTMLOutputDriver(),
+    PushoverDriver.type: PushoverDriver(),
 }
 
 
@@ -100,6 +104,8 @@ __all__ = [
     "TCPOutputDriver",
     "PythonCodeDriver",
     "SSHCommandDriver",
+    "HTMLOutputDriver",
+    "PushoverDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]
