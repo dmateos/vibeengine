@@ -124,6 +124,47 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Merge results from parallel branches',
         'category': 'Control Flow',
     },
+    'sleep': {
+        'display_name': 'Sleep',
+        'icon': '💤',
+        'color': '#64748b',
+        'description': 'Pause workflow execution for a specified duration',
+        'category': 'Control Flow',
+        'config': {
+            'units': [
+                {'value': 'milliseconds', 'label': 'Milliseconds'},
+                {'value': 'seconds', 'label': 'Seconds'},
+                {'value': 'minutes', 'label': 'Minutes'},
+                {'value': 'hours', 'label': 'Hours'},
+            ]
+        }
+    },
+    'for_each': {
+        'display_name': 'For Each',
+        'icon': '🔁',
+        'color': '#8b5cf6',
+        'description': 'Iterate over array items and execute loop body for each',
+        'category': 'Control Flow',
+        'config': {
+            'collect_options': [
+                {'value': 'true', 'label': 'Collect Results (Array)'},
+                {'value': 'false', 'label': 'Pass Through Original'},
+            ]
+        }
+    },
+    'loop': {
+        'display_name': 'Loop',
+        'icon': '🔄',
+        'color': '#7c3aed',
+        'description': 'Execute loop body N times with counter (for i in range)',
+        'category': 'Control Flow',
+        'config': {
+            'pass_through_options': [
+                {'value': 'true', 'label': 'Chain Output (each iteration feeds next)'},
+                {'value': 'false', 'label': 'Collect Results (return array)'},
+            ]
+        }
+    },
     'tool': {
         'display_name': 'Tool',
         'icon': '🛠️',

@@ -823,6 +823,54 @@
   color: #1f2937;
 }
 
+/* Sleep Node */
+.sleep-node {
+  background: var(--card-bg);
+  border-left: 4px solid #64748b;
+  color: #64748b;
+}
+
+.sleep-node .node-icon {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  color: white;
+}
+
+.sleep-node .node-label {
+  color: #1f2937;
+}
+
+/* For Each Node */
+.for-each-node {
+  background: var(--card-bg);
+  border-left: 4px solid #8b5cf6;
+  color: #8b5cf6;
+}
+
+.for-each-node .node-icon {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.for-each-node .node-label {
+  color: #1f2937;
+}
+
+/* Loop Node */
+.loop-node {
+  background: var(--card-bg);
+  border-left: 4px solid #7c3aed;
+  color: #7c3aed;
+}
+
+.loop-node .node-icon {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+}
+
+.loop-node .node-label {
+  color: #1f2937;
+}
+
 /* Validator Node */
 .validator-node {
   background: var(--card-bg);
@@ -889,6 +937,18 @@
 }
 
 :root[data-theme="dark"] .condition-node .node-label {
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .sleep-node .node-label {
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .for-each-node .node-label {
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .loop-node .node-label {
   color: var(--text-primary);
 }
 

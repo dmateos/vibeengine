@@ -380,8 +380,8 @@ class WorkflowExecutor:
         if not outs:
             return None, None
 
-        # Router/Condition nodes: follow sourceHandle matching route
-        if ntype in ('router', 'condition'):
+        # Router/Condition/ForEach/Loop nodes: follow sourceHandle matching route
+        if ntype in ('router', 'condition', 'for_each', 'loop'):
             return self._select_router_edge(res, outs, node_by_id)
 
         # Other nodes: use preference-based selection

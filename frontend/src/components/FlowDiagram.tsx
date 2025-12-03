@@ -36,6 +36,9 @@ import TextTransformNode from './nodes/TextTransformNode'
 import MemoryNode from './nodes/MemoryNode'
 import ParallelNode from './nodes/ParallelNode'
 import JoinNode from './nodes/JoinNode'
+import SleepNode from './nodes/SleepNode'
+import ForEachNode from './nodes/ForEachNode'
+import LoopNode from './nodes/LoopNode'
 import ConsensusNode from './nodes/ConsensusNode'
 import ConversationNode from './nodes/ConversationNode'
 import TCPOutputNode from './nodes/TCPOutputNode'
@@ -105,6 +108,9 @@ const nodeTypes = {
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
+  sleep: SleepNode,
+  for_each: ForEachNode,
+  loop: LoopNode,
   consensus: ConsensusNode,
   conversation: ConversationNode,
   tcp_output: TCPOutputNode,
@@ -3909,6 +3915,349 @@ function FlowDiagram() {
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>
                       Supported operators: &gt;, &lt;, &gt;=, &lt;=, ==, !=, contains, startswith, endswith, and, or, not, in
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Sleep Node */}
+              {selectedNode.type === 'sleep' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Duration:</strong>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.001}
+                      value={(selectedNode.data as any)?.duration ?? 1}
+                      onChange={(e) => {
+                        const duration = parseFloat(e.target.value) || 0
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), duration } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), duration } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Unit:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'sleep')
+                      const units = nodeTypeDef?.config?.units || []
+
+                      if (units.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.unit ?? 'seconds'}
+                            onChange={(e) => {
+                              const unit = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), unit } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), unit } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {units.map((u: any) => (
+                              <option key={u.value} value={u.value}>{u.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.unit ?? 'seconds'}
+                            onChange={(e) => {
+                              const unit = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), unit } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), unit } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="milliseconds">Milliseconds</option>
+                            <option value="seconds">Seconds</option>
+                            <option value="minutes">Minutes</option>
+                            <option value="hours">Hours</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  <div style={{ marginLeft: 6, marginTop: 8, padding: 8, background: 'var(--background-secondary)', borderRadius: 4 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>Sleep Examples:</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ marginBottom: 4 }}>• <strong>500 milliseconds</strong> - Short delay (0.5s)</div>
+                      <div style={{ marginBottom: 4 }}>• <strong>5 seconds</strong> - Rate limiting</div>
+                      <div style={{ marginBottom: 4 }}>• <strong>1 minute</strong> - Polling interval</div>
+                      <div style={{ marginBottom: 4 }}>• <strong>0.5 hours</strong> - Long delay (30 min)</div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>
+                      Maximum duration: 1 hour (3600 seconds)
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* For Each Node */}
+              {selectedNode.type === 'for_each' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Item Variable Name:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.item_var ?? 'item'}
+                      onChange={(e) => {
+                        const item_var = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), item_var } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), item_var } } : prev))
+                      }}
+                      placeholder="item"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Access current item in loop body using <code>{'{item}'}</code>
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Collect Results:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'for_each')
+                      const collectOptions = nodeTypeDef?.config?.collect_options || []
+
+                      if (collectOptions.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.collect_results ?? 'true'}
+                            onChange={(e) => {
+                              const collect_results = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), collect_results } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), collect_results } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {collectOptions.map((opt: any) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.collect_results ?? 'true'}
+                            onChange={(e) => {
+                              const collect_results = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), collect_results } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), collect_results } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="true">Collect Results (Array)</option>
+                            <option value="false">Pass Through Original</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Collect: Returns array of all iteration results<br />
+                      Pass Through: Returns original input array
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Max Iterations:</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={(selectedNode.data as any)?.max_iterations ?? 1000}
+                      onChange={(e) => {
+                        const max_iterations = parseInt(e.target.value) || 1000
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), max_iterations } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), max_iterations } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Safety limit to prevent excessive iterations
+                    </small>
+                  </div>
+
+                  <div style={{ marginLeft: 6, marginTop: 8, padding: 8, background: 'var(--background-secondary)', borderRadius: 4 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>Loop Structure:</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ marginBottom: 4 }}>• <strong>Body handle (bottom)</strong> - Connect to loop body start</div>
+                      <div style={{ marginBottom: 4 }}>• <strong>Exit handle (right)</strong> - Connect to post-loop node</div>
+                      <div style={{ marginBottom: 4 }}>• Loop executes body for each array item</div>
+                      <div style={{ marginBottom: 4 }}>• After all iterations, continues to exit node</div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>
+                      Example: Input ["a", "b", "c"] → body runs 3 times
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Loop Node */}
+              {selectedNode.type === 'loop' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Iterations:</strong>
+                    <input
+                      type="number"
+                      min={0}
+                      max={10000}
+                      value={(selectedNode.data as any)?.iterations ?? 5}
+                      onChange={(e) => {
+                        const iterations = parseInt(e.target.value) || 5
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), iterations } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), iterations } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Number of times to execute loop body (max: 10,000)
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Counter Variable Name:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.counter_var ?? 'i'}
+                      onChange={(e) => {
+                        const counter_var = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), counter_var } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), counter_var } } : prev))
+                      }}
+                      placeholder="i"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Access counter in loop body using <code>{'{i}'}</code>
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Start From:</strong>
+                    <input
+                      type="number"
+                      min={0}
+                      value={(selectedNode.data as any)?.start_from ?? 0}
+                      onChange={(e) => {
+                        const start_from = parseInt(e.target.value) || 0
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), start_from } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), start_from } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Starting counter value (e.g., 0 for 0-4, 1 for 1-5)
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Output Mode:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'loop')
+                      const passOptions = nodeTypeDef?.config?.pass_through_options || []
+
+                      if (passOptions.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.pass_through ?? 'true'}
+                            onChange={(e) => {
+                              const pass_through = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), pass_through } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), pass_through } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {passOptions.map((opt: any) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.pass_through ?? 'true'}
+                            onChange={(e) => {
+                              const pass_through = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), pass_through } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), pass_through } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="true">Chain Output (each iteration feeds next)</option>
+                            <option value="false">Collect Results (return array)</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Chain: Output of iteration N becomes input of N+1<br />
+                      Collect: Returns array of all iteration outputs
+                    </small>
+                  </div>
+
+                  <div style={{ marginLeft: 6, marginTop: 8, padding: 8, background: 'var(--background-secondary)', borderRadius: 4 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>Loop Structure:</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ marginBottom: 4 }}>• <strong>Body handle (bottom)</strong> - Connect to loop body start</div>
+                      <div style={{ marginBottom: 4 }}>• <strong>Exit handle (right)</strong> - Connect to post-loop node</div>
+                      <div style={{ marginBottom: 4 }}>• Loop executes body N times with counter</div>
+                      <div style={{ marginBottom: 4 }}>• Counter starts at "Start From" value</div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>
+                      Example: 5 iterations starting from 0 → counter = 0, 1, 2, 3, 4
                     </div>
                   </div>
                 </>

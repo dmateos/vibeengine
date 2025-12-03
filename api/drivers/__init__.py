@@ -30,6 +30,9 @@ from .sql_driver import SQLDriver
 from .webhook import WebhookDriver
 from .email_output import EmailOutputDriver
 from .web_scraper import WebScraperDriver
+from .sleep import SleepDriver
+from .for_each import ForEachDriver
+from .loop import LoopDriver
 
 
 # Registry of all available drivers
@@ -64,6 +67,9 @@ DRIVERS: Dict[str, BaseDriver] = {
     WebhookDriver.type: WebhookDriver(),
     EmailOutputDriver.type: EmailOutputDriver(),
     WebScraperDriver.type: WebScraperDriver(),
+    SleepDriver.type: SleepDriver(),
+    ForEachDriver.type: ForEachDriver(),
+    LoopDriver.type: LoopDriver(),
 }
 
 
@@ -127,6 +133,9 @@ __all__ = [
     "WebhookDriver",
     "EmailOutputDriver",
     "WebScraperDriver",
+    "SleepDriver",
+    "ForEachDriver",
+    "LoopDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]
