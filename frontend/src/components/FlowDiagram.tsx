@@ -45,6 +45,8 @@ import EmbeddingsNode from './nodes/EmbeddingsNode'
 import ImageGenerationNode from './nodes/ImageGenerationNode'
 import PythonCodeNode from './nodes/PythonCodeNode'
 import SSHCommandNode from './nodes/SSHCommandNode'
+import RedisNode from './nodes/RedisNode'
+import SQLNode from './nodes/SQLNode'
 import CronTriggerNode from './nodes/CronTriggerNode'
 import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
@@ -92,6 +94,8 @@ const nodeTypes = {
   text_transform: TextTransformNode,
   python_code: PythonCodeNode,
   ssh_command: SSHCommandNode,
+  redis: RedisNode,
+  sql: SQLNode,
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
@@ -1968,6 +1972,443 @@ function FlowDiagram() {
                     </label>
                     <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
                       Shows connection details and command execution info in response.
+                    </small>
+                  </div>
+                </>
+              )}
+
+              {/* Redis Node */}
+              {selectedNode.type === 'redis' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Host:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.host ?? 'localhost'}
+                      onChange={(e) => {
+                        const host = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), host } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), host } } : prev))
+                      }}
+                      placeholder="localhost"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Port:</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      value={(selectedNode.data as any)?.port ?? 6379}
+                      onChange={(e) => {
+                        const port = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), port } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), port } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Password (optional):</strong>
+                    <input
+                      type="password"
+                      value={(selectedNode.data as any)?.password ?? ''}
+                      onChange={(e) => {
+                        const password = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), password } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), password } } : prev))
+                      }}
+                      placeholder="Leave empty to use REDIS_PASSWORD env var"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Database:</strong>
+                    <input
+                      type="number"
+                      min={0}
+                      max={15}
+                      value={(selectedNode.data as any)?.db ?? 0}
+                      onChange={(e) => {
+                        const db = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), db } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), db } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Operation:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'redis')
+                      const operations = nodeTypeDef?.config?.operations || []
+
+                      if (operations.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.operation ?? 'get'}
+                            onChange={(e) => {
+                              const operation = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), operation } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {operations.map((op: any) => (
+                              <option key={op.value} value={op.value}>{op.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.operation ?? 'get'}
+                            onChange={(e) => {
+                              const operation = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), operation } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), operation } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="get">GET</option>
+                            <option value="set">SET</option>
+                            <option value="delete">DELETE</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Key:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.key ?? ''}
+                      onChange={(e) => {
+                        const key = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), key } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), key } } : prev))
+                      }}
+                      placeholder="Use {input} to include upstream data"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Leave empty to use input as key
+                    </small>
+                  </div>
+
+                  {['set', 'lpush', 'rpush'].includes((selectedNode.data as any)?.operation) && (
+                    <div className="detail-item">
+                      <strong>Value:</strong>
+                      <textarea
+                        value={(selectedNode.data as any)?.value ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), value } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), value } } : prev))
+                        }}
+                        placeholder="Use {input} to include upstream data"
+                        rows={3}
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                    </div>
+                  )}
+
+                  {['hset', 'hget'].includes((selectedNode.data as any)?.operation) && (
+                    <div className="detail-item">
+                      <strong>Field:</strong>
+                      <input
+                        type="text"
+                        value={(selectedNode.data as any)?.field ?? ''}
+                        onChange={(e) => {
+                          const field = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), field } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), field } } : prev))
+                        }}
+                        placeholder="Hash field name"
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                    </div>
+                  )}
+
+                  {(selectedNode.data as any)?.operation === 'hset' && (
+                    <div className="detail-item">
+                      <strong>Value:</strong>
+                      <textarea
+                        value={(selectedNode.data as any)?.value ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), value } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), value } } : prev))
+                        }}
+                        placeholder="Use {input} to include upstream data"
+                        rows={3}
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                    </div>
+                  )}
+
+                  {(selectedNode.data as any)?.operation === 'set' && (
+                    <div className="detail-item">
+                      <strong>TTL (seconds, optional):</strong>
+                      <input
+                        type="number"
+                        min={1}
+                        value={(selectedNode.data as any)?.ttl ?? ''}
+                        onChange={(e) => {
+                          const ttl = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), ttl } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), ttl } } : prev))
+                        }}
+                        placeholder="Leave empty for no expiration"
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* SQL Node */}
+              {selectedNode.type === 'sql' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Database Type:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'sql')
+                      const dbTypes = nodeTypeDef?.config?.db_types || []
+
+                      if (dbTypes.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.db_type ?? 'postgresql'}
+                            onChange={(e) => {
+                              const db_type = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), db_type } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), db_type } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {dbTypes.map((type: any) => (
+                              <option key={type.value} value={type.value}>{type.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.db_type ?? 'postgresql'}
+                            onChange={(e) => {
+                              const db_type = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), db_type } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), db_type } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="postgresql">PostgreSQL</option>
+                            <option value="mysql">MySQL</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Host:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.host ?? 'localhost'}
+                      onChange={(e) => {
+                        const host = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), host } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), host } } : prev))
+                      }}
+                      placeholder="localhost"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Port:</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      value={(selectedNode.data as any)?.port ?? ((selectedNode.data as any)?.db_type === 'mysql' ? 3306 : 5432)}
+                      onChange={(e) => {
+                        const port = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), port } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), port } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>User:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.user ?? ''}
+                      onChange={(e) => {
+                        const user = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), user } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), user } } : prev))
+                      }}
+                      placeholder="postgres / root"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Password (optional):</strong>
+                    <input
+                      type="password"
+                      value={(selectedNode.data as any)?.password ?? ''}
+                      onChange={(e) => {
+                        const password = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), password } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), password } } : prev))
+                      }}
+                      placeholder="Leave empty to use env var"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Uses POSTGRESQL_PASSWORD or MYSQL_PASSWORD env variable if empty
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Database:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.database ?? ''}
+                      onChange={(e) => {
+                        const database = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), database } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), database } } : prev))
+                      }}
+                      placeholder="Database name"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>SQL Query:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.query ?? ''}
+                      onChange={(e) => {
+                        const query = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), query } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), query } } : prev))
+                      }}
+                      placeholder="SELECT * FROM users WHERE id = %s"
+                      rows={5}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Use <code>{'{input}'}</code> to include upstream data, or use <code>%s</code> placeholders with params
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Parameters (optional):</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.params ?? ''}
+                      onChange={(e) => {
+                        const params = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), params } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), params } } : prev))
+                      }}
+                      placeholder='["value1", 123]'
+                      rows={2}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      JSON array of parameters for prepared statement (e.g., <code>["john", 25]</code>)
                     </small>
                   </div>
                 </>

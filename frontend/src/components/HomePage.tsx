@@ -152,18 +152,18 @@ function HomePage({ onNavigateToFlow }: HomePageProps) {
 
           <div className="hero-stats">
             <div className="stat-item">
-              <div className="stat-number">3+</div>
+              <div className="stat-number">25+</div>
+              <div className="stat-label">Node Types</div>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item">
+              <div className="stat-number">4</div>
               <div className="stat-label">LLM Providers</div>
             </div>
             <div className="stat-divider"></div>
             <div className="stat-item">
-              <div className="stat-number">∞</div>
-              <div className="stat-label">Custom Tools</div>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
               <div className="stat-number">Visual</div>
-              <div className="stat-label">Workflow Builder</div>
+              <div className="stat-label">Drag & Drop</div>
             </div>
           </div>
         </div>
@@ -174,20 +174,38 @@ function HomePage({ onNavigateToFlow }: HomePageProps) {
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-icon">🤖</div>
-            <h3>Multi-Agent Orchestration</h3>
-            <p>Coordinate multiple AI agents working together to solve complex tasks</p>
+            <h3>Multi-LLM Support</h3>
+            <p>OpenAI, Claude, Ollama, and HuggingFace models with dynamic configuration</p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🔧</div>
-            <h3>Custom Tools</h3>
-            <p>Extend agent capabilities with custom tools and integrations</p>
+            <div className="feature-icon">🗄️</div>
+            <h3>Database Integration</h3>
+            <p>Read/write to Redis, PostgreSQL, and MySQL directly from workflows</p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🧠</div>
-            <h3>Persistent Memory</h3>
-            <p>Give your agents memory to learn and improve over time</p>
+            <div className="feature-icon">🎨</div>
+            <h3>AI Generation</h3>
+            <p>Create embeddings and generate images with DALL-E, Stable Diffusion</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">🐍</div>
+            <h3>Code Execution</h3>
+            <p>Run Python code and SSH commands on remote servers</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">⏰</div>
+            <h3>Scheduled Workflows</h3>
+            <p>Trigger workflows on schedule with cron expressions</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">🔌</div>
+            <h3>MCP Integration</h3>
+            <p>Connect to Model Context Protocol servers for extended capabilities</p>
           </div>
 
           <div className="feature-card">
@@ -197,15 +215,33 @@ function HomePage({ onNavigateToFlow }: HomePageProps) {
           </div>
 
           <div className="feature-card">
+            <div className="feature-icon">📱</div>
+            <h3>Notifications</h3>
+            <p>Send push notifications via Pushover and output HTML previews</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">🧠</div>
+            <h3>Persistent Memory</h3>
+            <p>Give your agents memory to maintain state across executions</p>
+          </div>
+
+          <div className="feature-card">
             <div className="feature-icon">🔀</div>
-            <h3>Conditional Logic</h3>
-            <p>Add smart routing and decision-making to your workflows</p>
+            <h3>Smart Routing</h3>
+            <p>Conditional logic and dynamic routing based on context</p>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon">💬</div>
+            <h3>Multi-Agent Chat</h3>
+            <p>Create consensus and conversation flows between multiple agents</p>
           </div>
 
           <div className="feature-card">
             <div className="feature-icon">📊</div>
             <h3>Live Monitoring</h3>
-            <p>Track workflow execution in real-time with detailed traces</p>
+            <p>Track workflow execution in real-time with detailed traces and logs</p>
           </div>
         </div>
       </div>

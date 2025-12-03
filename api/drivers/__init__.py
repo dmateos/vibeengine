@@ -25,6 +25,8 @@ from .html_output import HTMLOutputDriver
 from .pushover import PushoverDriver
 from .embeddings import EmbeddingsDriver
 from .image_generation import ImageGenerationDriver
+from .redis_driver import RedisDriver
+from .sql_driver import SQLDriver
 
 
 # Registry of all available drivers
@@ -54,6 +56,8 @@ DRIVERS: Dict[str, BaseDriver] = {
     PushoverDriver.type: PushoverDriver(),
     EmbeddingsDriver.type: EmbeddingsDriver(),
     ImageGenerationDriver.type: ImageGenerationDriver(),
+    RedisDriver.type: RedisDriver(),
+    SQLDriver.type: SQLDriver(),
 }
 
 
@@ -112,6 +116,8 @@ __all__ = [
     "PushoverDriver",
     "EmbeddingsDriver",
     "ImageGenerationDriver",
+    "RedisDriver",
+    "SQLDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]

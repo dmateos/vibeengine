@@ -184,6 +184,46 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Execute commands on remote servers via SSH',
         'category': 'Data',
     },
+    'redis': {
+        'display_name': 'Redis',
+        'icon': '🔴',
+        'color': '#dc2626',
+        'description': 'Read/write data to Redis key-value store',
+        'category': 'Data',
+        'config': {
+            'operations': [
+                {'value': 'get', 'label': 'GET - Get value'},
+                {'value': 'set', 'label': 'SET - Set value'},
+                {'value': 'delete', 'label': 'DEL - Delete key'},
+                {'value': 'incr', 'label': 'INCR - Increment'},
+                {'value': 'decr', 'label': 'DECR - Decrement'},
+                {'value': 'lpush', 'label': 'LPUSH - Push to list (left)'},
+                {'value': 'rpush', 'label': 'RPUSH - Push to list (right)'},
+                {'value': 'lpop', 'label': 'LPOP - Pop from list (left)'},
+                {'value': 'rpop', 'label': 'RPOP - Pop from list (right)'},
+                {'value': 'lrange', 'label': 'LRANGE - Get list items'},
+                {'value': 'hset', 'label': 'HSET - Set hash field'},
+                {'value': 'hget', 'label': 'HGET - Get hash field'},
+                {'value': 'hgetall', 'label': 'HGETALL - Get all hash fields'},
+                {'value': 'keys', 'label': 'KEYS - Get keys by pattern'},
+                {'value': 'exists', 'label': 'EXISTS - Check if key exists'},
+                {'value': 'ttl', 'label': 'TTL - Get time to live'},
+            ]
+        }
+    },
+    'sql': {
+        'display_name': 'SQL Database',
+        'icon': '🗄️',
+        'color': '#0284c7',
+        'description': 'Execute SQL queries on MySQL or PostgreSQL',
+        'category': 'Data',
+        'config': {
+            'db_types': [
+                {'value': 'postgresql', 'label': 'PostgreSQL'},
+                {'value': 'mysql', 'label': 'MySQL'},
+            ]
+        }
+    },
 
     # Network/Output
     'tcp_output': {
