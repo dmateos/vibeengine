@@ -5,7 +5,7 @@ This module contains the canonical definitions for all node types in the system.
 Each node type should have a corresponding driver in api/drivers/.
 """
 
-from typing import Dict, Any, TypedDict
+from typing import Dict, Any, TypedDict, List, NotRequired
 
 
 class NodeTypeDefinition(TypedDict):
@@ -14,6 +14,8 @@ class NodeTypeDefinition(TypedDict):
     color: str
     description: str
     category: str
+    models: NotRequired[List[Dict[str, Any]]]
+    config: NotRequired[Dict[str, Any]]
 
 
 NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
@@ -47,6 +49,11 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'color': '#10a37f',
         'description': 'OpenAI-powered agent node (GPT-4, GPT-3.5, etc.)',
         'category': 'Agents',
+        'models': [
+            {'value': 'gpt-5.1', 'label': 'GPT-5.1'},
+            {'value': 'gpt-5-mini', 'label': 'GPT-5 mini'},
+            {'value': 'gpt-4.1', 'label': 'GPT-4.1'},
+        ]
     },
     'claude_agent': {
         'display_name': 'Claude Agent',
@@ -54,6 +61,11 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'color': '#d97757',
         'description': 'Anthropic Claude-powered agent node',
         'category': 'Agents',
+        'models': [
+            {'value': 'claude-sonnet-4-5', 'label': 'Claude 4 Sonnet'},
+            {'value': 'claude-haiku-4-5', 'label': 'Claude 4 Haiku'},
+            {'value': 'claude-opus-4-5', 'label': 'Claude 4 Opus'},
+        ]
     },
     'ollama_agent': {
         'display_name': 'Ollama Agent',
@@ -61,6 +73,12 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'color': '#06b6d4',
         'description': 'Local Ollama-powered agent node',
         'category': 'Agents',
+        'models': [
+            {'value': 'llama3.1:latest', 'label': 'Llama 3.1'},
+            {'value': 'gpt-oss:20b', 'label': 'GPT Oss 20b'},
+            {'value': 'deepseek-r1:8b', 'label': 'Deepseek r1 8b'},
+            {'value': 'mistral:latest', 'label': 'Mistral'},
+        ]
     },
     'huggingface': {
         'display_name': 'Hugging Face',
@@ -188,6 +206,34 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'color': '#249df1',
         'description': 'Send push notifications via Pushover',
         'category': 'Integrations',
+        'config': {
+            'sounds': [
+                {'value': '', 'label': 'Default'},
+                {'value': 'pushover', 'label': 'Pushover'},
+                {'value': 'bike', 'label': 'Bike'},
+                {'value': 'bugle', 'label': 'Bugle'},
+                {'value': 'cashregister', 'label': 'Cash Register'},
+                {'value': 'classical', 'label': 'Classical'},
+                {'value': 'cosmic', 'label': 'Cosmic'},
+                {'value': 'falling', 'label': 'Falling'},
+                {'value': 'gamelan', 'label': 'Gamelan'},
+                {'value': 'incoming', 'label': 'Incoming'},
+                {'value': 'intermission', 'label': 'Intermission'},
+                {'value': 'magic', 'label': 'Magic'},
+                {'value': 'mechanical', 'label': 'Mechanical'},
+                {'value': 'pianobar', 'label': 'Piano Bar'},
+                {'value': 'siren', 'label': 'Siren'},
+                {'value': 'spacealarm', 'label': 'Space Alarm'},
+                {'value': 'tugboat', 'label': 'Tug Boat'},
+                {'value': 'alien', 'label': 'Alien (long)'},
+                {'value': 'climb', 'label': 'Climb (long)'},
+                {'value': 'persistent', 'label': 'Persistent (long)'},
+                {'value': 'echo', 'label': 'Echo (long)'},
+                {'value': 'updown', 'label': 'Up Down (long)'},
+                {'value': 'vibrate', 'label': 'Vibrate only'},
+                {'value': 'none', 'label': 'Silent'},
+            ]
+        }
     },
     'embeddings': {
         'display_name': 'Embeddings',
@@ -195,6 +241,27 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'color': '#8b5cf6',
         'description': 'Generate text embeddings from multiple providers (OpenAI, Cohere, HuggingFace)',
         'category': 'Agents',
+        'config': {
+            'openai': {
+                'models': [
+                    {'value': 'text-embedding-3-small', 'label': 'text-embedding-3-small'},
+                    {'value': 'text-embedding-3-large', 'label': 'text-embedding-3-large'},
+                    {'value': 'text-embedding-ada-002', 'label': 'ada-002 (legacy)'},
+                ]
+            },
+            'cohere': {
+                'models': [
+                    {'value': 'embed-english-v3.0', 'label': 'English v3.0'},
+                    {'value': 'embed-multilingual-v3.0', 'label': 'Multilingual v3.0'},
+                ]
+            },
+            'huggingface': {
+                'models': [
+                    {'value': 'all-MiniLM-L6-v2', 'label': 'all-MiniLM-L6-v2'},
+                    {'value': 'all-mpnet-base-v2', 'label': 'all-mpnet-base-v2'},
+                ]
+            }
+        }
     },
     'image_generation': {
         'display_name': 'Image Generation',
@@ -202,6 +269,33 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'color': '#f59e0b',
         'description': 'Generate images from text using DALL-E, Stable Diffusion, and more',
         'category': 'Agents',
+        'config': {
+            'dalle': {
+                'models': [
+                    {'value': 'dall-e-3', 'label': 'DALL-E 3'},
+                    {'value': 'dall-e-2', 'label': 'DALL-E 2'},
+                ],
+                'sizes': [
+                    {'value': '1024x1024', 'label': '1024x1024 (Square)'},
+                    {'value': '1792x1024', 'label': '1792x1024 (Landscape)'},
+                    {'value': '1024x1792', 'label': '1024x1792 (Portrait)'},
+                ],
+                'qualities': [
+                    {'value': 'standard', 'label': 'Standard'},
+                    {'value': 'hd', 'label': 'HD (Higher cost)'},
+                ],
+                'styles': [
+                    {'value': 'vivid', 'label': 'Vivid (Hyper-real)'},
+                    {'value': 'natural', 'label': 'Natural'},
+                ]
+            },
+            'stability': {
+                'models': [
+                    {'value': 'stable-diffusion-xl-1024-v1-0', 'label': 'SD XL 1.0'},
+                    {'value': 'stable-diffusion-v1-6', 'label': 'SD v1.6'},
+                ]
+            }
+        }
     },
 }
 

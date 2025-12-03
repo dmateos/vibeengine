@@ -59,6 +59,8 @@ interface NodeTypeData {
   color: string
   description: string
   category: string
+  models?: Array<{ value: string; label: string }>
+  config?: Record<string, any>
 }
 
 interface Workflow {
@@ -1482,31 +1484,61 @@ function FlowDiagram() {
                 <>
                   <div className="detail-item">
                     <strong>Model:</strong>
-                    <input
-                      type="text"
-                      value={(selectedNode.data as any)?.model ?? (
-                        selectedNode.type === 'claude_agent' ? 'claude-3-5-sonnet-20241022' : (
-                          selectedNode.type === 'openai_agent' ? 'gpt-4o-mini' : 'llama3.1:8b-instruct'
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === selectedNode.type)
+                      const models = nodeTypeDef?.models || []
+
+                      if (models.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.model ?? models[0]?.value ?? ''}
+                            onChange={(e) => {
+                              const model = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {models.map(m => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
                         )
-                      )}
-                      onChange={(e) => {
-                        const model = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
-                          )
+                      } else {
+                        // Fallback to input if models not loaded
+                        return (
+                          <input
+                            type="text"
+                            value={(selectedNode.data as any)?.model ?? (
+                              selectedNode.type === 'claude_agent' ? 'claude-3-5-sonnet-20241022' : (
+                                selectedNode.type === 'openai_agent' ? 'gpt-4o-mini' : 'llama3.1:8b-instruct'
+                              )
+                            )}
+                            onChange={(e) => {
+                              const model = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                            placeholder={
+                              selectedNode.type === 'claude_agent'
+                                ? 'e.g., claude-3-5-sonnet-20241022'
+                                : selectedNode.type === 'openai_agent'
+                                ? 'e.g., gpt-4o-mini'
+                                : 'e.g., llama3.1:8b-instruct'
+                            }
+                          />
                         )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
-                      }}
-                      style={{ width: '100%', marginLeft: 6 }}
-                      placeholder={
-                        selectedNode.type === 'claude_agent'
-                          ? 'e.g., claude-3-5-sonnet-20241022'
-                          : selectedNode.type === 'openai_agent'
-                          ? 'e.g., gpt-4o-mini'
-                          : 'e.g., llama3.1:8b-instruct'
                       }
-                    />
+                    })()}
                   </div>
                   <div className="detail-item">
                     <strong>Temperature:</strong>
@@ -2048,44 +2080,74 @@ function FlowDiagram() {
 
                   <div className="detail-item">
                     <strong>Sound (optional):</strong>
-                    <select
-                      value={(selectedNode.data as any)?.sound ?? ''}
-                      onChange={(e) => {
-                        const sound = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), sound } } : n
-                          )
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'pushover')
+                      const sounds = nodeTypeDef?.config?.sounds || []
+
+                      if (sounds.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.sound ?? ''}
+                            onChange={(e) => {
+                              const sound = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), sound } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), sound } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {sounds.map((s: any) => (
+                              <option key={s.value} value={s.value}>{s.label}</option>
+                            ))}
+                          </select>
                         )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), sound } } : prev))
-                      }}
-                      style={{ width: '100%', marginLeft: 6 }}
-                    >
-                      <option value="">Default</option>
-                      <option value="pushover">Pushover</option>
-                      <option value="bike">Bike</option>
-                      <option value="bugle">Bugle</option>
-                      <option value="cashregister">Cash Register</option>
-                      <option value="classical">Classical</option>
-                      <option value="cosmic">Cosmic</option>
-                      <option value="falling">Falling</option>
-                      <option value="gamelan">Gamelan</option>
-                      <option value="incoming">Incoming</option>
-                      <option value="intermission">Intermission</option>
-                      <option value="magic">Magic</option>
-                      <option value="mechanical">Mechanical</option>
-                      <option value="pianobar">Piano Bar</option>
-                      <option value="siren">Siren</option>
-                      <option value="spacealarm">Space Alarm</option>
-                      <option value="tugboat">Tug Boat</option>
-                      <option value="alien">Alien (long)</option>
-                      <option value="climb">Climb (long)</option>
-                      <option value="persistent">Persistent (long)</option>
-                      <option value="echo">Echo (long)</option>
-                      <option value="updown">Up Down (long)</option>
-                      <option value="vibrate">Vibrate only</option>
-                      <option value="none">Silent</option>
-                    </select>
+                      } else {
+                        // Fallback
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.sound ?? ''}
+                            onChange={(e) => {
+                              const sound = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), sound } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), sound } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="">Default</option>
+                            <option value="pushover">Pushover</option>
+                            <option value="bike">Bike</option>
+                            <option value="bugle">Bugle</option>
+                            <option value="cashregister">Cash Register</option>
+                            <option value="classical">Classical</option>
+                            <option value="cosmic">Cosmic</option>
+                            <option value="falling">Falling</option>
+                            <option value="gamelan">Gamelan</option>
+                            <option value="incoming">Incoming</option>
+                            <option value="intermission">Intermission</option>
+                            <option value="magic">Magic</option>
+                            <option value="mechanical">Mechanical</option>
+                            <option value="pianobar">Piano Bar</option>
+                            <option value="siren">Siren</option>
+                            <option value="spacealarm">Space Alarm</option>
+                            <option value="tugboat">Tug Boat</option>
+                            <option value="alien">Alien (long)</option>
+                            <option value="climb">Climb (long)</option>
+                            <option value="persistent">Persistent (long)</option>
+                            <option value="echo">Echo (long)</option>
+                            <option value="updown">Up Down (long)</option>
+                            <option value="vibrate">Vibrate only</option>
+                            <option value="none">Silent</option>
+                          </select>
+                        )
+                      }
+                    })()}
                   </div>
 
                   <div className="detail-item">
@@ -2176,21 +2238,53 @@ function FlowDiagram() {
 
                   <div className="detail-item">
                     <strong>Model:</strong>
-                    <input
-                      type="text"
-                      value={(selectedNode.data as any)?.model ?? ''}
-                      onChange={(e) => {
-                        const model = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
-                          )
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'embeddings')
+                      const provider = (selectedNode.data as any)?.provider ?? 'openai'
+                      const models = nodeTypeDef?.config?.[provider]?.models || []
+
+                      if (models.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.model ?? models[0]?.value ?? ''}
+                            onChange={(e) => {
+                              const model = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="">Default</option>
+                            {models.map((m: any) => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
                         )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
-                      }}
-                      placeholder="e.g., text-embedding-3-small, all-MiniLM-L6-v2"
-                      style={{ width: '100%', marginLeft: 6 }}
-                    />
+                      } else {
+                        // Fallback to input if models not loaded
+                        return (
+                          <input
+                            type="text"
+                            value={(selectedNode.data as any)?.model ?? ''}
+                            onChange={(e) => {
+                              const model = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                            }}
+                            placeholder="e.g., text-embedding-3-small"
+                            style={{ width: '100%', marginLeft: 6 }}
+                          />
+                        )
+                      }
+                    })()}
                     <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
                       Leave empty for provider default
                     </small>
@@ -2268,33 +2362,65 @@ function FlowDiagram() {
 
                   <div className="detail-item">
                     <strong>Model:</strong>
-                    <select
-                      value={(selectedNode.data as any)?.model ?? ''}
-                      onChange={(e) => {
-                        const model = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
-                          )
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'image_generation')
+                      const provider = (selectedNode.data as any)?.provider ?? 'dalle'
+                      const models = nodeTypeDef?.config?.[provider]?.models || []
+
+                      if (models.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.model ?? ''}
+                            onChange={(e) => {
+                              const model = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="">Default ({models[0]?.label})</option>
+                            {models.map((m: any) => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
                         )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
-                      }}
-                      style={{ width: '100%', marginLeft: 6 }}
-                    >
-                      {(selectedNode.data as any)?.provider === 'dalle' ? (
-                        <>
-                          <option value="">Default (dall-e-3)</option>
-                          <option value="dall-e-3">DALL-E 3</option>
-                          <option value="dall-e-2">DALL-E 2</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="">Default (SD XL 1.0)</option>
-                          <option value="stable-diffusion-xl-1024-v1-0">SD XL 1.0</option>
-                          <option value="stable-diffusion-v1-6">SD v1.6</option>
-                        </>
-                      )}
-                    </select>
+                      } else {
+                        // Fallback
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.model ?? ''}
+                            onChange={(e) => {
+                              const model = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), model } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), model } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {provider === 'dalle' ? (
+                              <>
+                                <option value="">Default (dall-e-3)</option>
+                                <option value="dall-e-3">DALL-E 3</option>
+                                <option value="dall-e-2">DALL-E 2</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="">Default (SD XL 1.0)</option>
+                                <option value="stable-diffusion-xl-1024-v1-0">SD XL 1.0</option>
+                                <option value="stable-diffusion-v1-6">SD v1.6</option>
+                              </>
+                            )}
+                          </select>
+                        )
+                      }
+                    })()}
                   </div>
 
                   <div className="detail-item">
@@ -2338,77 +2464,159 @@ function FlowDiagram() {
                     </small>
                   </div>
 
-                  <div className="detail-item">
-                    <strong>Size:</strong>
-                    <select
-                      value={(selectedNode.data as any)?.size ?? '1024x1024'}
-                      onChange={(e) => {
-                        const size = e.target.value
-                        setNodes((nds) =>
-                          nds.map((n) =>
-                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), size } } : n
+                  {(selectedNode.data as any)?.provider === 'dalle' && (
+                    <div className="detail-item">
+                      <strong>Size:</strong>
+                      {(() => {
+                        const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'image_generation')
+                        const sizes = nodeTypeDef?.config?.dalle?.sizes || []
+
+                        if (sizes.length > 0) {
+                          return (
+                            <select
+                              value={(selectedNode.data as any)?.size ?? '1024x1024'}
+                              onChange={(e) => {
+                                const size = e.target.value
+                                setNodes((nds) =>
+                                  nds.map((n) =>
+                                    n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), size } } : n
+                                  )
+                                )
+                                setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), size } } : prev))
+                              }}
+                              style={{ width: '100%', marginLeft: 6 }}
+                            >
+                              {sizes.map((s: any) => (
+                                <option key={s.value} value={s.value}>{s.label}</option>
+                              ))}
+                            </select>
                           )
-                        )
-                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), size } } : prev))
-                      }}
-                      style={{ width: '100%', marginLeft: 6 }}
-                    >
-                      {(selectedNode.data as any)?.provider === 'dalle' && (selectedNode.data as any)?.model !== 'dall-e-2' ? (
-                        <>
-                          <option value="1024x1024">1024x1024 (Square)</option>
-                          <option value="1792x1024">1792x1024 (Landscape)</option>
-                          <option value="1024x1792">1024x1792 (Portrait)</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="256x256">256x256</option>
-                          <option value="512x512">512x512</option>
-                          <option value="1024x1024">1024x1024</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
+                        } else {
+                          // Fallback
+                          return (
+                            <select
+                              value={(selectedNode.data as any)?.size ?? '1024x1024'}
+                              onChange={(e) => {
+                                const size = e.target.value
+                                setNodes((nds) =>
+                                  nds.map((n) =>
+                                    n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), size } } : n
+                                  )
+                                )
+                                setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), size } } : prev))
+                              }}
+                              style={{ width: '100%', marginLeft: 6 }}
+                            >
+                              <option value="1024x1024">1024x1024 (Square)</option>
+                              <option value="1792x1024">1792x1024 (Landscape)</option>
+                              <option value="1024x1792">1024x1792 (Portrait)</option>
+                            </select>
+                          )
+                        }
+                      })()}
+                    </div>
+                  )}
 
                   {(selectedNode.data as any)?.provider === 'dalle' && (selectedNode.data as any)?.model !== 'dall-e-2' && (
                     <>
                       <div className="detail-item">
                         <strong>Quality:</strong>
-                        <select
-                          value={(selectedNode.data as any)?.quality ?? 'standard'}
-                          onChange={(e) => {
-                            const quality = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), quality } } : n
-                              )
+                        {(() => {
+                          const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'image_generation')
+                          const qualities = nodeTypeDef?.config?.dalle?.qualities || []
+
+                          if (qualities.length > 0) {
+                            return (
+                              <select
+                                value={(selectedNode.data as any)?.quality ?? 'standard'}
+                                onChange={(e) => {
+                                  const quality = e.target.value
+                                  setNodes((nds) =>
+                                    nds.map((n) =>
+                                      n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), quality } } : n
+                                    )
+                                  )
+                                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), quality } } : prev))
+                                }}
+                                style={{ width: '100%', marginLeft: 6 }}
+                              >
+                                {qualities.map((q: any) => (
+                                  <option key={q.value} value={q.value}>{q.label}</option>
+                                ))}
+                              </select>
                             )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), quality } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                        >
-                          <option value="standard">Standard</option>
-                          <option value="hd">HD (Higher cost)</option>
-                        </select>
+                          } else {
+                            // Fallback
+                            return (
+                              <select
+                                value={(selectedNode.data as any)?.quality ?? 'standard'}
+                                onChange={(e) => {
+                                  const quality = e.target.value
+                                  setNodes((nds) =>
+                                    nds.map((n) =>
+                                      n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), quality } } : n
+                                    )
+                                  )
+                                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), quality } } : prev))
+                                }}
+                                style={{ width: '100%', marginLeft: 6 }}
+                              >
+                                <option value="standard">Standard</option>
+                                <option value="hd">HD (Higher cost)</option>
+                              </select>
+                            )
+                          }
+                        })()}
                       </div>
 
                       <div className="detail-item">
                         <strong>Style:</strong>
-                        <select
-                          value={(selectedNode.data as any)?.style ?? 'vivid'}
-                          onChange={(e) => {
-                            const style = e.target.value
-                            setNodes((nds) =>
-                              nds.map((n) =>
-                                n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), style } } : n
-                              )
+                        {(() => {
+                          const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'image_generation')
+                          const styles = nodeTypeDef?.config?.dalle?.styles || []
+
+                          if (styles.length > 0) {
+                            return (
+                              <select
+                                value={(selectedNode.data as any)?.style ?? 'vivid'}
+                                onChange={(e) => {
+                                  const style = e.target.value
+                                  setNodes((nds) =>
+                                    nds.map((n) =>
+                                      n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), style } } : n
+                                    )
+                                  )
+                                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), style } } : prev))
+                                }}
+                                style={{ width: '100%', marginLeft: 6 }}
+                              >
+                                {styles.map((s: any) => (
+                                  <option key={s.value} value={s.value}>{s.label}</option>
+                                ))}
+                              </select>
                             )
-                            setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), style } } : prev))
-                          }}
-                          style={{ width: '100%', marginLeft: 6 }}
-                        >
-                          <option value="vivid">Vivid (Hyper-real)</option>
-                          <option value="natural">Natural</option>
-                        </select>
+                          } else {
+                            // Fallback
+                            return (
+                              <select
+                                value={(selectedNode.data as any)?.style ?? 'vivid'}
+                                onChange={(e) => {
+                                  const style = e.target.value
+                                  setNodes((nds) =>
+                                    nds.map((n) =>
+                                      n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), style } } : n
+                                    )
+                                  )
+                                  setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), style } } : prev))
+                                }}
+                                style={{ width: '100%', marginLeft: 6 }}
+                              >
+                                <option value="vivid">Vivid (Hyper-real)</option>
+                                <option value="natural">Natural</option>
+                              </select>
+                            )
+                          }
+                        })()}
                       </div>
                     </>
                   )}
