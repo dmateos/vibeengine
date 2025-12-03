@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-vi_*zvok759ek9)r)(ctt&&)90_)6ls7(g59e((p4puk0dj%q_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["dev0.lan.mateos.cc", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["dev0.lan.mateos.cc", "home.mateos.cc", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -127,14 +127,20 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS settings
+# CORS settings - Allow any port from trusted domains
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:\d+$",  # Any port on localhost
+    r"^http://127\.0\.0\.1:\d+$",  # Any port on 127.0.0.1
+    r"^https?://.*\.mateos\.cc(:\d+)?$",  # Any subdomain of mateos.cc with any port (HTTP/HTTPS)
+    r"^https?://home\.mateos\.cc(:\d+)?$",  # home.mateos.cc with any port (HTTP/HTTPS)
+    r"^https?://dev0\.lan\.mateos\.cc(:\d+)?$",  # dev0.lan.mateos.cc with any port (HTTP/HTTPS)
+]
+
+# Also keep specific origins for better compatibility
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default port
-    "http://localhost:5174",  # Vite alternate port
-    "http://localhost:3000",  # Alternative React port
-    "http://dev0.lan.mateos.cc:5173",  # Production Vite port
-    "http://dev0.lan.mateos.cc:5174",  # Production Vite alternate port
-    "http://dev0.lan.mateos.cc:3000",  # Alternative production port
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
 ]
 
 # REST Framework settings

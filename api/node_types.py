@@ -240,6 +240,67 @@ NODE_TYPE_DEFINITIONS: Dict[str, NodeTypeDefinition] = {
         'description': 'Output HTML content with preview capability',
         'category': 'Input/Output',
     },
+    'webhook': {
+        'display_name': 'Webhook',
+        'icon': '🔗',
+        'color': '#0891b2',
+        'description': 'Send HTTP requests to external webhooks and APIs',
+        'category': 'Integrations',
+        'config': {
+            'methods': [
+                {'value': 'GET', 'label': 'GET'},
+                {'value': 'POST', 'label': 'POST'},
+                {'value': 'PUT', 'label': 'PUT'},
+                {'value': 'PATCH', 'label': 'PATCH'},
+                {'value': 'DELETE', 'label': 'DELETE'},
+            ],
+            'auth_types': [
+                {'value': 'none', 'label': 'None'},
+                {'value': 'bearer', 'label': 'Bearer Token'},
+                {'value': 'token', 'label': 'Token'},
+                {'value': 'api_key', 'label': 'API Key (X-API-Key header)'},
+            ]
+        }
+    },
+    'email_output': {
+        'display_name': 'Email Output',
+        'icon': '📧',
+        'color': '#ef4444',
+        'description': 'Send emails via SMTP',
+        'category': 'Integrations',
+        'config': {
+            'use_tls_options': [
+                {'value': 'true', 'label': 'TLS (Port 587)'},
+                {'value': 'false', 'label': 'SSL (Port 465)'},
+            ],
+            'html_options': [
+                {'value': 'false', 'label': 'Plain Text'},
+                {'value': 'true', 'label': 'HTML'},
+            ]
+        }
+    },
+    'web_scraper': {
+        'display_name': 'Web Scraper',
+        'icon': '🕷️',
+        'color': '#8b5cf6',
+        'description': 'Extract data from websites using CSS selectors',
+        'category': 'Integrations',
+        'config': {
+            'methods': [
+                {'value': 'css', 'label': 'CSS Selector'},
+                {'value': 'xpath', 'label': 'XPath (not supported yet)'},
+            ],
+            'extract_types': [
+                {'value': 'text', 'label': 'Text Content'},
+                {'value': 'html', 'label': 'HTML'},
+                {'value': 'attr', 'label': 'Attribute'},
+            ],
+            'multiple_options': [
+                {'value': 'true', 'label': 'Multiple Results (Array)'},
+                {'value': 'false', 'label': 'Single Result'},
+            ]
+        }
+    },
     'pushover': {
         'display_name': 'Pushover',
         'icon': '📱',

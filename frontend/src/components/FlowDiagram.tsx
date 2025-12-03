@@ -47,6 +47,9 @@ import PythonCodeNode from './nodes/PythonCodeNode'
 import SSHCommandNode from './nodes/SSHCommandNode'
 import RedisNode from './nodes/RedisNode'
 import SQLNode from './nodes/SQLNode'
+import WebhookNode from './nodes/WebhookNode'
+import EmailOutputNode from './nodes/EmailOutputNode'
+import WebScraperNode from './nodes/WebScraperNode'
 import CronTriggerNode from './nodes/CronTriggerNode'
 import ConsensusResultView from './ConsensusResultView'
 import { usePolling } from '../hooks/usePolling'
@@ -96,6 +99,9 @@ const nodeTypes = {
   ssh_command: SSHCommandNode,
   redis: RedisNode,
   sql: SQLNode,
+  webhook: WebhookNode,
+  email_output: EmailOutputNode,
+  web_scraper: WebScraperNode,
   memory: MemoryNode,
   parallel: ParallelNode,
   join: JoinNode,
@@ -2414,6 +2420,784 @@ function FlowDiagram() {
                 </>
               )}
 
+              {/* Webhook Node */}
+              {selectedNode.type === 'webhook' && (
+                <>
+                  <div className="detail-item">
+                    <strong>URL:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.url ?? ''}
+                      onChange={(e) => {
+                        const url = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), url } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), url } } : prev))
+                      }}
+                      placeholder="https://example.com/webhook"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Use <code>{'{input}'}</code> to include upstream data in URL
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Method:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'webhook')
+                      const methods = nodeTypeDef?.config?.methods || []
+
+                      if (methods.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.method ?? 'POST'}
+                            onChange={(e) => {
+                              const method = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), method } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), method } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {methods.map((m: any) => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.method ?? 'POST'}
+                            onChange={(e) => {
+                              const method = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), method } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), method } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="DELETE">DELETE</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Headers (optional):</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.headers ?? ''}
+                      onChange={(e) => {
+                        const headers = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), headers } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), headers } } : prev))
+                      }}
+                      placeholder='{"Content-Type": "application/json"} or line format: Content-Type: application/json'
+                      rows={3}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      JSON format or one header per line (Key: Value)
+                    </small>
+                  </div>
+
+                  {['POST', 'PUT', 'PATCH'].includes((selectedNode.data as any)?.method || 'POST') && (
+                    <div className="detail-item">
+                      <strong>Body:</strong>
+                      <textarea
+                        value={(selectedNode.data as any)?.body ?? ''}
+                        onChange={(e) => {
+                          const body = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), body } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), body } } : prev))
+                        }}
+                        placeholder='{"message": "{input}"} or plain text'
+                        rows={5}
+                        style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                      />
+                      <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                        JSON or plain text. Use <code>{'{input}'}</code> to include upstream data. Leave empty to send input as-is.
+                      </small>
+                    </div>
+                  )}
+
+                  <div className="detail-item">
+                    <strong>Authentication:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'webhook')
+                      const authTypes = nodeTypeDef?.config?.auth_types || []
+
+                      if (authTypes.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.auth_type ?? 'none'}
+                            onChange={(e) => {
+                              const auth_type = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), auth_type } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), auth_type } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {authTypes.map((type: any) => (
+                              <option key={type.value} value={type.value}>{type.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.auth_type ?? 'none'}
+                            onChange={(e) => {
+                              const auth_type = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), auth_type } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), auth_type } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="none">None</option>
+                            <option value="bearer">Bearer Token</option>
+                            <option value="token">Token</option>
+                            <option value="api_key">API Key</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  {(selectedNode.data as any)?.auth_type !== 'none' && (
+                    <div className="detail-item">
+                      <strong>Token/Key:</strong>
+                      <input
+                        type="password"
+                        value={(selectedNode.data as any)?.auth_token ?? ''}
+                        onChange={(e) => {
+                          const auth_token = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), auth_token } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), auth_token } } : prev))
+                        }}
+                        placeholder="Your authentication token or API key"
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="detail-item">
+                    <strong>Timeout (seconds):</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={(selectedNode.data as any)?.timeout ?? 30}
+                      onChange={(e) => {
+                        const timeout = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), timeout } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), timeout } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Email Output Node */}
+              {selectedNode.type === 'email_output' && (
+                <>
+                  <div className="detail-item">
+                    <strong>SMTP Server:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.smtp_server ?? ''}
+                      onChange={(e) => {
+                        const smtp_server = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), smtp_server } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), smtp_server } } : prev))
+                      }}
+                      placeholder="smtp.gmail.com"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>SMTP Port:</strong>
+                    <input
+                      type="number"
+                      value={(selectedNode.data as any)?.smtp_port ?? 587}
+                      onChange={(e) => {
+                        const smtp_port = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), smtp_port } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), smtp_port } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Use TLS:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'email_output')
+                      const tlsOptions = nodeTypeDef?.config?.use_tls_options || []
+
+                      if (tlsOptions.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.use_tls ?? 'true'}
+                            onChange={(e) => {
+                              const use_tls = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), use_tls } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), use_tls } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {tlsOptions.map((opt: any) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.use_tls ?? 'true'}
+                            onChange={(e) => {
+                              const use_tls = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), use_tls } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), use_tls } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="true">TLS (Port 587)</option>
+                            <option value="false">SSL (Port 465)</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Username:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.username ?? ''}
+                      onChange={(e) => {
+                        const username = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), username } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), username } } : prev))
+                      }}
+                      placeholder="your-email@gmail.com or use SMTP_USERNAME env"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Password:</strong>
+                    <input
+                      type="password"
+                      value={(selectedNode.data as any)?.password ?? ''}
+                      onChange={(e) => {
+                        const password = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), password } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), password } } : prev))
+                      }}
+                      placeholder="Use SMTP_PASSWORD env for security"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>From Email:</strong>
+                    <input
+                      type="email"
+                      value={(selectedNode.data as any)?.from_email ?? ''}
+                      onChange={(e) => {
+                        const from_email = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), from_email } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), from_email } } : prev))
+                      }}
+                      placeholder="sender@example.com"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>To Email:</strong>
+                    <input
+                      type="email"
+                      value={(selectedNode.data as any)?.to_email ?? ''}
+                      onChange={(e) => {
+                        const to_email = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), to_email } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), to_email } } : prev))
+                      }}
+                      placeholder="recipient@example.com"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>CC (optional):</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.cc_email ?? ''}
+                      onChange={(e) => {
+                        const cc_email = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), cc_email } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), cc_email } } : prev))
+                      }}
+                      placeholder="cc1@example.com, cc2@example.com"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>BCC (optional):</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.bcc_email ?? ''}
+                      onChange={(e) => {
+                        const bcc_email = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), bcc_email } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), bcc_email } } : prev))
+                      }}
+                      placeholder="bcc1@example.com, bcc2@example.com"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Subject:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.subject ?? ''}
+                      onChange={(e) => {
+                        const subject = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), subject } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), subject } } : prev))
+                      }}
+                      placeholder="Email subject"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Use <code>{'{input}'}</code> to include upstream data
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Body:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.body ?? ''}
+                      onChange={(e) => {
+                        const body = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), body } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), body } } : prev))
+                      }}
+                      placeholder="Email body content"
+                      rows={5}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Use <code>{'{input}'}</code> to include upstream data. Leave empty to use input as body.
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>HTML:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'email_output')
+                      const htmlOptions = nodeTypeDef?.config?.html_options || []
+
+                      if (htmlOptions.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.html ?? 'false'}
+                            onChange={(e) => {
+                              const html = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), html } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), html } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {htmlOptions.map((opt: any) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.html ?? 'false'}
+                            onChange={(e) => {
+                              const html = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), html } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), html } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="false">Plain Text</option>
+                            <option value="true">HTML</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+                </>
+              )}
+
+              {/* Web Scraper Node */}
+              {selectedNode.type === 'web_scraper' && (
+                <>
+                  <div className="detail-item">
+                    <strong>URL:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.url ?? ''}
+                      onChange={(e) => {
+                        const url = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), url } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), url } } : prev))
+                      }}
+                      placeholder="https://example.com"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Use <code>{'{input}'}</code> to include upstream data in URL
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Method:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'web_scraper')
+                      const methods = nodeTypeDef?.config?.methods || []
+
+                      if (methods.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.method ?? 'css'}
+                            onChange={(e) => {
+                              const method = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), method } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), method } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {methods.map((m: any) => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.method ?? 'css'}
+                            onChange={(e) => {
+                              const method = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), method } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), method } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="css">CSS Selector</option>
+                            <option value="xpath">XPath (not supported yet)</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Selector:</strong>
+                    <input
+                      type="text"
+                      value={(selectedNode.data as any)?.selector ?? ''}
+                      onChange={(e) => {
+                        const selector = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), selector } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), selector } } : prev))
+                      }}
+                      placeholder="h1.title or div.content"
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      CSS selector to find elements (e.g., <code>a.link</code>, <code>div.content &gt; p</code>)
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Extract:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'web_scraper')
+                      const extractTypes = nodeTypeDef?.config?.extract_types || []
+
+                      if (extractTypes.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.extract ?? 'text'}
+                            onChange={(e) => {
+                              const extract = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), extract } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), extract } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {extractTypes.map((type: any) => (
+                              <option key={type.value} value={type.value}>{type.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.extract ?? 'text'}
+                            onChange={(e) => {
+                              const extract = e.target.value
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), extract } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), extract } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="text">Text Content</option>
+                            <option value="html">HTML</option>
+                            <option value="attr">Attribute</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  {(selectedNode.data as any)?.extract === 'attr' && (
+                    <div className="detail-item">
+                      <strong>Attribute Name:</strong>
+                      <input
+                        type="text"
+                        value={(selectedNode.data as any)?.attr_name ?? 'href'}
+                        onChange={(e) => {
+                          const attr_name = e.target.value
+                          setNodes((nds) =>
+                            nds.map((n) =>
+                              n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), attr_name } } : n
+                            )
+                          )
+                          setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), attr_name } } : prev))
+                        }}
+                        placeholder="href"
+                        style={{ width: '100%', marginLeft: 6 }}
+                      />
+                      <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                        Attribute to extract (e.g., <code>href</code>, <code>src</code>, <code>data-id</code>)
+                      </small>
+                    </div>
+                  )}
+
+                  <div className="detail-item">
+                    <strong>Multiple Results:</strong>
+                    {(() => {
+                      const nodeTypeDef = nodeTypeOptions.find(nt => nt.name === 'web_scraper')
+                      const multipleOptions = nodeTypeDef?.config?.multiple_options || []
+
+                      if (multipleOptions.length > 0) {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.multiple ?? 'true'}
+                            onChange={(e) => {
+                              const multiple = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), multiple } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), multiple } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            {multipleOptions.map((opt: any) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )
+                      } else {
+                        return (
+                          <select
+                            value={(selectedNode.data as any)?.multiple ?? 'true'}
+                            onChange={(e) => {
+                              const multiple = e.target.value === 'true'
+                              setNodes((nds) =>
+                                nds.map((n) =>
+                                  n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), multiple } } : n
+                                )
+                              )
+                              setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), multiple } } : prev))
+                            }}
+                            style={{ width: '100%', marginLeft: 6 }}
+                          >
+                            <option value="true">Multiple Results (Array)</option>
+                            <option value="false">Single Result</option>
+                          </select>
+                        )
+                      }
+                    })()}
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Headers (optional):</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.headers ?? ''}
+                      onChange={(e) => {
+                        const headers = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), headers } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), headers } } : prev))
+                      }}
+                      placeholder='{"User-Agent": "MyBot"} or line format'
+                      rows={3}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      Custom headers in JSON format or one per line (Key: Value)
+                    </small>
+                  </div>
+
+                  <div className="detail-item">
+                    <strong>Timeout (seconds):</strong>
+                    <input
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={(selectedNode.data as any)?.timeout ?? 30}
+                      onChange={(e) => {
+                        const timeout = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id ? { ...n, data: { ...(n.data as any), timeout } } : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), timeout } } : prev))
+                      }}
+                      style={{ width: '100%', marginLeft: 6 }}
+                    />
+                  </div>
+                </>
+              )}
+
               {/* Pushover Node */}
               {selectedNode.type === 'pushover' && (
                 <>
@@ -3083,6 +3867,50 @@ function FlowDiagram() {
                       />
                     </div>
                   )}
+                </>
+              )}
+
+              {/* Condition Node */}
+              {selectedNode.type === 'condition' && (
+                <>
+                  <div className="detail-item">
+                    <strong>Expression:</strong>
+                    <textarea
+                      value={(selectedNode.data as any)?.expression ?? ''}
+                      onChange={(e) => {
+                        const expression = e.target.value
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNode.id
+                              ? { ...n, data: { ...(n.data as any), expression } }
+                              : n
+                          )
+                        )
+                        setSelectedNode((prev) => (prev ? { ...prev, data: { ...(prev.data as any), expression } } : prev))
+                      }}
+                      placeholder="e.g., input.length > 100"
+                      rows={3}
+                      style={{ width: '100%', marginLeft: 6, fontFamily: 'monospace' }}
+                    />
+                    <small style={{ color: 'var(--text-secondary)', marginLeft: 6, display: 'block', marginTop: 4 }}>
+                      Evaluates to true/false to route flow. Available context: <code>input</code>, <code>state</code>, <code>params</code>
+                    </small>
+                  </div>
+
+                  <div style={{ marginLeft: 6, marginTop: 8, padding: 8, background: 'var(--background-secondary)', borderRadius: 4 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>Expression Examples:</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                      <div style={{ marginBottom: 4 }}>• <code>len(input) &gt; 100</code> - Check input length</div>
+                      <div style={{ marginBottom: 4 }}>• <code>input contains 'urgent'</code> - String contains</div>
+                      <div style={{ marginBottom: 4 }}>• <code>input startswith 'Hello'</code> - String starts with</div>
+                      <div style={{ marginBottom: 4 }}>• <code>state.count &gt;= 3</code> - State variable check</div>
+                      <div style={{ marginBottom: 4 }}>• <code>params.tier == 'premium'</code> - Parameter check</div>
+                      <div style={{ marginBottom: 4 }}>• <code>input contains 'error' or len(input) &lt; 10</code> - Boolean logic</div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>
+                      Supported operators: &gt;, &lt;, &gt;=, &lt;=, ==, !=, contains, startswith, endswith, and, or, not, in
+                    </div>
+                  </div>
                 </>
               )}
 

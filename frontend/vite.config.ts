@@ -9,8 +9,10 @@ export default defineConfig({
     port: 5173,
     allowedHosts: [
       'dev0.lan.mateos.cc',
+      'home.mateos.cc',
       'localhost',
       '.lan.mateos.cc', // Allow all subdomains of lan.mateos.cc
+      '.mateos.cc', // Allow all subdomains of mateos.cc
     ],
   },
 })

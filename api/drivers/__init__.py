@@ -27,6 +27,9 @@ from .embeddings import EmbeddingsDriver
 from .image_generation import ImageGenerationDriver
 from .redis_driver import RedisDriver
 from .sql_driver import SQLDriver
+from .webhook import WebhookDriver
+from .email_output import EmailOutputDriver
+from .web_scraper import WebScraperDriver
 
 
 # Registry of all available drivers
@@ -58,6 +61,9 @@ DRIVERS: Dict[str, BaseDriver] = {
     ImageGenerationDriver.type: ImageGenerationDriver(),
     RedisDriver.type: RedisDriver(),
     SQLDriver.type: SQLDriver(),
+    WebhookDriver.type: WebhookDriver(),
+    EmailOutputDriver.type: EmailOutputDriver(),
+    WebScraperDriver.type: WebScraperDriver(),
 }
 
 
@@ -118,6 +124,9 @@ __all__ = [
     "ImageGenerationDriver",
     "RedisDriver",
     "SQLDriver",
+    "WebhookDriver",
+    "EmailOutputDriver",
+    "WebScraperDriver",
     "DRIVERS",
     "execute_node_by_type",
 ]

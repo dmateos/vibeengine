@@ -4,19 +4,21 @@
  */
 export const getApiBaseUrl = (): string => {
   const hostname = window.location.hostname;
+  const protocol = window.location.protocol; // http: or https:
 
   console.log('[API Config] Current hostname:', hostname);
+  console.log('[API Config] Current protocol:', protocol);
 
   // If accessing from dev0.lan.mateos.cc, use that for the API
   if (hostname === 'dev0.lan.mateos.cc') {
-    const apiUrl = 'http://dev0.lan.mateos.cc:8000/api';
+    const apiUrl = `${protocol}//dev0.lan.mateos.cc:8000/api`;
     console.log('[API Config] Using production API:', apiUrl);
     return apiUrl;
   }
 
   // If accessing from any non-localhost hostname, use that hostname for the API
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    const apiUrl = `http://${hostname}:8000/api`;
+    const apiUrl = `${protocol}//${hostname}:8000/api`;
     console.log('[API Config] Using hostname-based API:', apiUrl);
     return apiUrl;
   }
